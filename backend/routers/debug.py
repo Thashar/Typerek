@@ -1,7 +1,8 @@
 import os
 import traceback
-from fastapi import APIRouter
-from core.database import engine
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from core.database import engine, get_db
 
 router = APIRouter(prefix="/api/debug", tags=["debug"])
 
@@ -18,3 +19,13 @@ def test_db():
         return {"db": "ok", "url_tail": safe_repr}
     except Exception as e:
         return {"db": "error", "url_tail": safe_repr, "detail": str(e)}
+
+
+@router.get("/sync")
+async def debug_sync(db: Session = Depends(get_db)):
+    try:
+        from services import sync
+        saved = await sync.sync_fixtures_for_days(db, days_ahead=7)
+        return {"status": "ok", "synced": saved}
+    except Exception as e:
+        return {"status": "error", "detail": str(e), "trace": traceback.format_exc()}
