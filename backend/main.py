@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.database import engine, Base
@@ -10,9 +11,14 @@ import models.private_league
 
 from routers import auth, matches, cron, predictions, ranking, leagues
 
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Typerek API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Typerek API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
