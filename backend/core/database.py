@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from core.config import settings
 
-_url = settings.DATABASE_URL
+_url = settings.DATABASE_URL.strip()
 
 if _url.startswith("sqlite"):
     _kwargs = {"connect_args": {"check_same_thread": False}}
