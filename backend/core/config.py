@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def strip_url(cls, v: str) -> str:
-        return v.strip()
+        return v.replace("\n", "").replace("\r", "").strip()
 
     class Config:
         env_file = ".env"
