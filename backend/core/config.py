@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -10,6 +11,11 @@ class Settings(BaseSettings):
     API_FOOTBALL_KEY: str = ""
     API_FOOTBALL_VIA_RAPIDAPI: bool = False
     CRON_SECRET: str = ""
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def strip_url(cls, v: str) -> str:
+        return v.strip()
 
     class Config:
         env_file = ".env"
