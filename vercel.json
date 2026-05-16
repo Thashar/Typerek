@@ -1,0 +1,21 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/frontend/dist/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/sync-matches",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/update-results",
+      "schedule": "*/15 * * * *"
+    }
+  ],
+  "build": {
+    "env": {
+      "PYTHON_VERSION": "3.12"
+    }
+  }
+}
