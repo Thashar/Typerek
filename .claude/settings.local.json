@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "PowerShell(gh auth status 2>&1)",
+      "PowerShell(git clone https://github.com/Thash/Typerek.git \"C:\\\\Users\\\\Thash\\\\Desktop\\\\Bots\\\\Typerek_temp\" 2>&1)",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Thash\\\\Desktop\\\\Bots\\\\Typerek\\\\backend\\\\schemas\")",
+      "Bash(curl -s -X POST https://typerek-ngk.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"username\":\"testuser\",\"email\":\"test@test.com\",\"password\":\"test123\"}' -w '\\\\nHTTP_STATUS:%{http_code}')",
+      "Bash(curl -s https://typerek-ngk.vercel.app/api/health -w \"\\\\nHTTP_STATUS:%{http_code}\")",
+      "Bash(curl -s https://typerek-ngk.vercel.app/api/health -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(curl -s -X POST https://typerek-ngk.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"username\":\"testuser\",\"email\":\"test@test.com\",\"password\":\"test123\"}' -w '\\\\nHTTP:%{http_code}')",
+      "Bash(curl -s -X POST https://typerek-ngk.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"username\":\"testuser\",\"email\":\"test@test.com\",\"password\":\"test123\"}' -v)",
+      "Bash(curl -s https://typerek-ngk.vercel.app/api/debug/db)",
+      "Bash(curl -s https://typerek-ngk.vercel.app/api/health)",
+      "WebFetch(domain:typerek-ngk.vercel.app)"
+    ]
+  }
+}
