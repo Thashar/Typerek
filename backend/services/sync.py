@@ -22,6 +22,9 @@ def _parse_status(short: str) -> MatchStatus:
     return MatchStatus.SCHEDULED
 
 
+ALLOWED_LEAGUE_IDS = {1, 10}  # 1=World Cup, 10=International Friendlies
+
+
 async def sync_fixtures_for_days(db: Session, days_ahead: int = 7) -> int:
     """Pobiera mecze na najblizsze N dni i zapisuje do bazy."""
     saved = 0
@@ -29,7 +32,8 @@ async def sync_fixtures_for_days(db: Session, days_ahead: int = 7) -> int:
         day = (date.today() + timedelta(days=i)).isoformat()
         fixtures = await football_api.fetch_fixtures(day)
         for f in fixtures:
-            saved += _upsert_fixture(db, f)
+            if f["league"]["id"] in ALLOWED_LEAGUE_IDS:
+                saved += _upsert_fixture(db, f)
     db.commit()
     return saved
 
