@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     API_FOOTBALL_KEY: str = ""
+    API_FOOTBALL_VIA_RAPIDAPI: bool = False
+    CRON_SECRET: str = ""
 
     class Config:
         env_file = ".env"

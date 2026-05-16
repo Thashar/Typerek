@@ -8,7 +8,7 @@ import models.match
 import models.prediction
 import models.private_league
 
-from routers import auth
+from routers import auth, matches, cron
 
 Base.metadata.create_all(bind=engine)
 
@@ -23,6 +23,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(matches.router)
+app.include_router(cron.router)
 
 
 @app.get("/api/health")
