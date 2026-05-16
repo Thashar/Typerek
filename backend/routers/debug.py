@@ -25,7 +25,7 @@ def test_db():
 async def debug_sync(db: Session = Depends(get_db)):
     try:
         from services import sync
-        saved = await sync.sync_fixtures_for_days(db, days_ahead=7)
+        saved = await sync.sync_fixtures_for_days(db, days_ahead=1)
         return {"status": "ok", "synced": saved}
     except Exception as e:
         return {"status": "error", "detail": str(e), "trace": traceback.format_exc()}
