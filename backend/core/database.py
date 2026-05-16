@@ -8,7 +8,7 @@ if _url.startswith("sqlite"):
     _kwargs = {"connect_args": {"check_same_thread": False}}
 else:
     _url = _url.replace("postgresql://", "postgresql+pg8000://", 1)
-    _kwargs = {"connect_args": {"ssl_context": True}}
+    _kwargs = {"connect_args": {"ssl_context": True, "tcp_keepalive": True}}
 
 engine = create_engine(_url, **_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
