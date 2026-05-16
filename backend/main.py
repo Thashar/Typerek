@@ -8,6 +8,8 @@ import models.match
 import models.prediction
 import models.private_league
 
+from routers import auth
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Typerek API", version="0.1.0")
@@ -19,6 +21,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router)
 
 
 @app.get("/api/health")
