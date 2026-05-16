@@ -1,23 +1,29 @@
 import sys
 import os
+import json
 import traceback
+
+_boot_error = None
+_app = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 try:
-    from main import app
-except Exception as _e:
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
+    from main import app as _app
+except Exception:
+    _boot_error = traceback.format_exc()
 
-    app = FastAPI()
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-    _err = traceback.format_exc()
 
-    @app.get("/api/health")
-    def health():
-        return {"status": "boot_error", "detail": str(_e), "trace": _err}
+async def app(scope, receive, send):
+    if scope["type"] != "http":
+        return
 
-    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-    def fallback(path: str):
-        return {"status": "boot_error", "detail": str(_e)}
+    if _boot_error:
+        body = json.dumps({"boot_error": _boot_error, "python": sys.version, "path": sys.path}).encode()
+        await send({"type": "http.response.start", "status": 200, "headers": [
+            [b"content-type", b"application/json"],
+        ]})
+        await send({"type": "http.response.body", "body": body})
+        return
+
+    await _app(scope, receive, send)
