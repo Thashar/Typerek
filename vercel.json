@@ -1,9 +1,8 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/:path*", "destination": "/index.html" }
   ],
   "crons": [
     {
@@ -14,10 +13,5 @@
       "path": "/api/cron/update-results",
       "schedule": "*/15 * * * *"
     }
-  ],
-  "build": {
-    "env": {
-      "PYTHON_VERSION": "3.12"
-    }
-  }
+  ]
 }
