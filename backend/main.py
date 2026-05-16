@@ -8,7 +8,7 @@ import models.match
 import models.prediction
 import models.private_league
 
-from routers import auth, matches, cron
+from routers import auth, matches, cron, predictions, ranking, leagues
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,6 +24,9 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(matches.router)
+app.include_router(predictions.router)
+app.include_router(ranking.router)
+app.include_router(leagues.router)
 app.include_router(cron.router)
 
 
