@@ -8,8 +8,6 @@ if _url.startswith("sqlite"):
     _kwargs = {"connect_args": {"check_same_thread": False}}
 else:
     _url = _url.replace("postgresql://", "postgresql+pg8000://", 1)
-    # port 6543 = Supabase transaction pooler (wymagany dla serverless)
-    _url = _url.replace(":5432/", ":6543/", 1)
     _kwargs = {"connect_args": {"ssl_context": True}}
 
 engine = create_engine(_url, **_kwargs)
