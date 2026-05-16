@@ -3,12 +3,14 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from core.config import settings
 
 _url = settings.DATABASE_URL
+
 if _url.startswith("sqlite"):
     _kwargs = {"connect_args": {"check_same_thread": False}}
 else:
-    # pg8000 wymaga dialektu postgresql+pg8000://
     _url = _url.replace("postgresql://", "postgresql+pg8000://", 1)
-    _kwargs = {}
+    # port 6543 = Supabase transaction pooler (wymagany dla serverless)
+    _url = _url.replace(":5432/", ":6543/", 1)
+    _kwargs = {"connect_args": {"ssl_context": True}}
 
 engine = create_engine(_url, **_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
