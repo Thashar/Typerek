@@ -6,7 +6,12 @@ import { submitPrediction } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 
 function LiveMinute({ kickoff }) {
-  const calc = () => Math.min(90, Math.max(1, Math.floor((Date.now() - kickoff.getTime()) / 60000)))
+  const calc = () => {
+    const total = Math.floor((Date.now() - kickoff.getTime()) / 60000)
+    if (total <= 45) return total          // pierwsza połowa
+    if (total <= 60) return 45            // przerwa (~15 min)
+    return Math.min(90, total - 15)       // druga połowa
+  }
   const [minute, setMinute] = useState(calc)
   useEffect(() => {
     const id = setInterval(() => setMinute(calc()), 1000)
