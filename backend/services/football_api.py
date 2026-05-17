@@ -19,14 +19,17 @@ def _headers() -> dict:
     return {"X-Auth-Token": settings.FOOTBALL_DATA_API_KEY}
 
 
-def _status_short(status: str) -> str:
+def _status_short(raw: str, minute: int | None = None) -> str:
+    if raw == "IN_PLAY":
+        return "2H" if (minute is not None and minute > 45) else "1H"
     return {
-        "SCHEDULED": "NS", "TIMED": "NS",
-        "IN_PLAY": "1H", "PAUSED": "HT",
+        "PAUSED": "HT",
+        "EXTRA_TIME": "ET",
+        "PENALTY_SHOOTOUT": "P",
         "FINISHED": "FT", "AWARDED": "FT", "WALKOVER": "FT",
         "POSTPONED": "PST",
         "CANCELLED": "CANC", "SUSPENDED": "CANC",
-    }.get(status, "NS")
+    }.get(raw, "NS")
 
 
 def _to_fixture(m: dict, comp_code: str) -> dict:
@@ -37,11 +40,12 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
     except Exception:
         ts = 0
     ft = m.get("score", {}).get("fullTime", {})
+    minute = m.get("minute")
     return {
         "fixture": {
             "id": m["id"],
             "timestamp": ts,
-            "status": {"short": _status_short(m.get("status", "")), "elapsed": m.get("minute")},
+            "status": {"short": _status_short(m.get("status", ""), minute), "elapsed": minute},
         },
         "league": {
             "id": comp.get("id", 0),

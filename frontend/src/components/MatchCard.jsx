@@ -5,18 +5,25 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { submitPrediction } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 
-function LiveMinute({ kickoff }) {
+function LiveMinute({ kickoff, statusShort }) {
   const calc = () => {
     const total = Math.floor((Date.now() - kickoff.getTime()) / 60000)
-    if (total <= 45) return total          // pierwsza połowa
-    if (total <= 60) return 45            // przerwa (~15 min)
-    return Math.min(90, total - 15)       // druga połowa
+    if (statusShort === '2H') return Math.min(90, Math.max(46, total - 15))
+    if (statusShort === 'ET') return Math.min(120, Math.max(91, total - 30))
+    return Math.min(45, Math.max(1, total))
   }
   const [minute, setMinute] = useState(calc)
   useEffect(() => {
+    if (statusShort === 'HT' || statusShort === 'BT' || statusShort === 'P') return
     const id = setInterval(() => setMinute(calc()), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [statusShort])
+
+  if (statusShort === 'HT' || statusShort === 'BT')
+    return <div className="text-xs text-yellow-400 font-semibold mb-0.5">Przerwa</div>
+  if (statusShort === 'P')
+    return <div className="text-xs text-orange-400 font-semibold mb-0.5">Rzuty karne</div>
+
   return <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{minute}'</div>
 }
 
@@ -100,7 +107,7 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
-          {match.status === 'live' && <LiveMinute kickoff={kickoff} />}
+          {match.status === 'live' && <LiveMinute kickoff={kickoff} statusShort={match.status_short} />}
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (

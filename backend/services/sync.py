@@ -88,6 +88,7 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.away_team_logo = teams["away"].get("logo")
     match.kickoff = kickoff
     match.status = _parse_status(status_short)
+    match.status_short = status_short
     match.home_score = goals.get("home")
     match.away_score = goals.get("away")
     match.minute = f["fixture"]["status"].get("elapsed")
