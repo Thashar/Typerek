@@ -169,16 +169,16 @@ export default function Profile() {
           </div>
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-yellow-400">{exactHits}</p>
-            <p className="text-xs text-gray-400 mt-1">Dokładne ⭐</p>
+            <p className="text-xs text-gray-400 mt-1">Dokładny wynik ⭐</p>
           </div>
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-green-400">{outcomeHits}</p>
-            <p className="text-xs text-gray-400 mt-1">Wyniki ✓</p>
+            <p className="text-xs text-gray-400 mt-1">Dobry typ ✅</p>
           </div>
         </div>
         <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs text-gray-400 space-y-0.5">
-          <div>⭐ <span className="text-white">Dokładny typ</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{settings?.points_exact ?? 3} pkt</span></div>
-          <div>✓ <span className="text-white">Dobry wynik</span> (1/X/2) = <span className="text-green-400 font-bold">{settings?.points_outcome ?? 1} pkt</span></div>
+          <div>⭐ <span className="text-white">Dokładny wynik</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{settings?.points_exact ?? 3} pkt</span></div>
+          <div>✅ <span className="text-white">Dobry typ</span> (1/X/2) = <span className="text-green-400 font-bold">{settings?.points_outcome ?? 1} pkt</span></div>
           <div className="text-gray-500 pt-0.5">W fazie pucharowej liczy się wynik po 90 min — bez dogrywki i karnych.</div>
         </div>
       </div>
