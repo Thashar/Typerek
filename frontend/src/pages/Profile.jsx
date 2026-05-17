@@ -135,8 +135,8 @@ export default function Profile() {
   const predictions = preds ?? []
   const scored = predictions.filter(p => p.points != null)
   const totalPts = scored.reduce((s, p) => s + p.points, 0)
-  const exactHits = scored.filter(p => p.points === 5).length
-  const outcomeHits = scored.filter(p => p.points === 2).length
+  const exactHits = scored.filter(p => p.points === (settings?.points_exact ?? 3)).length
+  const outcomeHits = scored.filter(p => p.points === (settings?.points_outcome ?? 1)).length
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -177,8 +177,8 @@ export default function Profile() {
           </div>
         </div>
         <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs text-gray-400 space-y-0.5">
-          <div>⭐ <span className="text-white">Dokładny typ</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{settings?.points_exact ?? 5} pkt</span></div>
-          <div>✓ <span className="text-white">Dobry wynik</span> (1/X/2) = <span className="text-green-400 font-bold">{settings?.points_outcome ?? 2} pkt</span></div>
+          <div>⭐ <span className="text-white">Dokładny typ</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{settings?.points_exact ?? 3} pkt</span></div>
+          <div>✓ <span className="text-white">Dobry wynik</span> (1/X/2) = <span className="text-green-400 font-bold">{settings?.points_outcome ?? 1} pkt</span></div>
           <div className="text-gray-500 pt-0.5">W fazie pucharowej liczy się wynik po 90 min — bez dogrywki i karnych.</div>
         </div>
       </div>

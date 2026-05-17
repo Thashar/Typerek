@@ -35,8 +35,8 @@ export default function AdminUserProfile() {
   const predictions = preds ?? []
   const scored = predictions.filter(p => p.points != null)
   const totalPts = scored.reduce((s, p) => s + p.points, 0)
-  const exactHits = scored.filter(p => p.points === (settings?.points_exact ?? 5)).length
-  const outcomeHits = scored.filter(p => p.points === (settings?.points_outcome ?? 2)).length
+  const exactHits = scored.filter(p => p.points === (settings?.points_exact ?? 3)).length
+  const outcomeHits = scored.filter(p => p.points === (settings?.points_outcome ?? 1)).length
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
