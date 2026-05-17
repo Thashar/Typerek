@@ -25,16 +25,17 @@ def test_db():
 async def debug_apicheck():
     import httpx
     from core.config import settings
-    key = settings.API_FOOTBALL_KEY
+    key = settings.FOOTBALL_DATA_API_KEY
     if not key:
-        return {"status": "error", "detail": "API_FOOTBALL_KEY not set"}
+        return {"status": "error", "detail": "FOOTBALL_DATA_API_KEY not set"}
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             r = await client.get(
-                "https://v3.football.api-sports.io/status",
-                headers={"x-apisports-key": key},
+                "https://api.football-data.org/v4/competitions/WC",
+                headers={"X-Auth-Token": key},
             )
-            return {"status": "ok", "code": r.status_code, "body": r.json()}
+            data = r.json()
+            return {"status": "ok", "code": r.status_code, "competition": data.get("name"), "season": data.get("currentSeason")}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 

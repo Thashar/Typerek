@@ -37,16 +37,16 @@ export default function Admin() {
     setSyncResults(prev => ({ ...prev, [leagueId]: '✗ błąd' }))
 
   const syncWC = useMutation({
-    mutationFn: () => api.post('/admin/sync/1').then(r => r.data),
-    onSuccess: makeOnSuccess(1), onError: makeOnError(1),
+    mutationFn: () => api.post('/admin/sync/WC').then(r => r.data),
+    onSuccess: makeOnSuccess('WC'), onError: makeOnError('WC'),
   })
-  const syncFriendlies = useMutation({
-    mutationFn: () => api.post('/admin/sync/10').then(r => r.data),
-    onSuccess: makeOnSuccess(10), onError: makeOnError(10),
+  const syncNL = useMutation({
+    mutationFn: () => api.post('/admin/sync/NL').then(r => r.data),
+    onSuccess: makeOnSuccess('NL'), onError: makeOnError('NL'),
   })
-  const syncEkstra = useMutation({
-    mutationFn: () => api.post('/admin/sync/106').then(r => r.data),
-    onSuccess: makeOnSuccess(106), onError: makeOnError(106),
+  const syncEC = useMutation({
+    mutationFn: () => api.post('/admin/sync/EC').then(r => r.data),
+    onSuccess: makeOnSuccess('EC'), onError: makeOnError('EC'),
   })
 
   if (!user?.is_admin) {
@@ -70,9 +70,9 @@ export default function Admin() {
         <p className="text-xs text-gray-400">Kliknij każdy przycisk osobno — zaciąga mecze do końca roku.</p>
         <div className="flex flex-col gap-2">
           {[
-            { m: syncWC, id: 1, label: '🌍 World Cup 2026' },
-            { m: syncFriendlies, id: 10, label: '🤝 International Friendlies' },
-            { m: syncEkstra, id: 106, label: '🦅 Ekstraklasa' },
+            { m: syncWC, id: 'WC', label: '🌍 FIFA World Cup 2026' },
+            { m: syncNL, id: 'NL', label: '🏆 UEFA Nations League' },
+            { m: syncEC, id: 'EC', label: '🇪🇺 UEFA Euro' },
           ].map(({ m, id, label }) => (
             <div key={id} className="flex items-center gap-3">
               <button

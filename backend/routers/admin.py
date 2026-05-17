@@ -46,23 +46,21 @@ def admin_users(
     ]
 
 
-@router.post("/sync/{league_id}")
-async def admin_sync_league(
-    league_id: int,
+@router.post("/sync/{comp_code}")
+async def admin_sync_competition(
+    comp_code: str,
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
     from services import sync, football_api
     from datetime import date
 
-    season_map = {1: 2026, 10: 2026, 106: 2025}
-    season = season_map.get(league_id, 2026)
     from_date = date.today().isoformat()
     to_date = f"{date.today().year}-12-31"
 
-    fixtures = await football_api.fetch_fixtures_by_league_season(league_id, season, from_date, to_date)
+    fixtures = await football_api.fetch_fixtures_by_competition(comp_code.upper(), from_date, to_date)
     saved = 0
     for f in fixtures:
         saved += sync._upsert_fixture(db, f)
     db.commit()
-    return {"league_id": league_id, "synced": saved}
+    return {"competition": comp_code, "synced": saved}
