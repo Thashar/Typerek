@@ -41,28 +41,35 @@ async def debug_apicheck():
 
 @router.get("/league-check")
 async def debug_league_check():
-    """Sprawdza co API zwraca dla konkretnych lig z date (nie season)."""
+    """Sprawdza dostepnosc lig - bez filtra daty, tylko league+season."""
     import httpx
     from core.config import settings
-    from datetime import date, timedelta
 
     key = settings.API_FOOTBALL_KEY
     results = {}
 
-    # Sprawdz nastepne 30 dni dla kazdej ligi
-    from_date = date.today().isoformat()
-    to_date = (date.today() + timedelta(days=30)).isoformat()
+    checks = [
+        (1, 2026, "WorldCup_2026"),
+        (10, 2026, "Friendlies_2026"),
+        (10, 2025, "Friendlies_2025"),
+        (106, 2025, "Ekstraklasa_2025"),
+        (106, 2026, "Ekstraklasa_2026"),
+        (3, 2025, "UEFA_Euro_2025"),
+    ]
 
-    for league_id, name in [(1, "WorldCup"), (10, "Friendlies"), (106, "Ekstraklasa"), (107, "I_liga_PL")]:
+    for league_id, season, name in checks:
         try:
             async with httpx.AsyncClient(timeout=8) as client:
                 r = await client.get(
                     "https://v3.football.api-sports.io/fixtures",
                     headers={"x-apisports-key": key},
-                    params={"league": league_id, "from": from_date, "to": to_date},
+                    params={"league": league_id, "season": season},
                 )
                 data = r.json()
-                results[name] = {"count": data.get("results", 0), "errors": data.get("errors", [])}
+                results[name] = {
+                    "count": data.get("results", 0),
+                    "errors": data.get("errors", {}),
+                }
         except Exception as e:
             results[name] = {"error": str(e)}
     return results
