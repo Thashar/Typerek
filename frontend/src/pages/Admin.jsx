@@ -23,6 +23,53 @@ const COMPETITIONS = [
   { code: 'FL1', label: '🇫🇷 Ligue 1' },
 ]
 
+function UserRow({ u, currentUserId, onDeleted }) {
+  const [confirm, setConfirm] = useState(false)
+  const deleteMut = useMutation({
+    mutationFn: () => api.delete(`/admin/users/${u.id}`),
+    onSuccess: onDeleted,
+  })
+  const canDelete = !u.is_admin && u.id !== currentUserId
+
+  return (
+    <div className="px-4 py-3 flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <span className="font-medium text-white text-sm">{u.username}</span>
+        {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded">admin</span>}
+        <div className="text-xs text-gray-500 mt-0.5 truncate">{u.email}</div>
+      </div>
+      <div className="text-right shrink-0">
+        <div className="text-brand-400 font-bold text-sm">{u.total_points} pkt</div>
+        <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
+      </div>
+      {canDelete && (
+        confirm ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => deleteMut.mutate()}
+              disabled={deleteMut.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition"
+            >
+              {deleteMut.isPending ? '...' : 'Tak'}
+            </button>
+            <button onClick={() => setConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition">
+              Nie
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirm(true)}
+            className="text-gray-600 hover:text-red-400 transition text-lg leading-none shrink-0"
+            title="Usuń użytkownika"
+          >
+            ×
+          </button>
+        )
+      )}
+    </div>
+  )
+}
+
 export default function Admin() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -199,17 +246,7 @@ export default function Admin() {
         </div>
         <div className="divide-y divide-gray-700">
           {users?.map(u => (
-            <div key={u.id} className="px-4 py-3 flex items-center justify-between">
-              <div>
-                <span className="font-medium text-white text-sm">{u.username}</span>
-                {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded">admin</span>}
-                <div className="text-xs text-gray-500 mt-0.5">{u.email}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-brand-400 font-bold text-sm">{u.total_points} pkt</div>
-                <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
-              </div>
-            </div>
+            <UserRow key={u.id} u={u} currentUserId={user?.id} onDeleted={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })} />
           ))}
         </div>
       </div>

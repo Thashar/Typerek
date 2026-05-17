@@ -93,6 +93,25 @@ def delete_invite_code(
     return {"deleted": True}
 
 
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    from fastapi import HTTPException
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Nie możesz usunąć własnego konta")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
+    if target.is_admin:
+        raise HTTPException(status_code=400, detail="Nie można usunąć administratora")
+    db.query(Prediction).filter(Prediction.user_id == user_id).delete()
+    db.delete(target)
+    db.commit()
+
+
 @router.post("/sync-all")
 async def admin_sync_all(
     db: Session = Depends(get_db),
