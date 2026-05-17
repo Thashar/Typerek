@@ -71,8 +71,8 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
         )
         try:
             send_reset_email(user.email, token)
-        except Exception:
-            raise HTTPException(status_code=500, detail="Błąd wysyłania e-maila. Sprawdź konfigurację SMTP.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Błąd wysyłania e-maila: {e}")
     return {"detail": "Jeśli konto z tym adresem istnieje, wysłaliśmy link do resetu hasła."}
 
 
