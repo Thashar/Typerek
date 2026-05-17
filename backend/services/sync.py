@@ -26,6 +26,21 @@ def _parse_status(short: str) -> MatchStatus:
 COMPETITION_CODES = ["WC"]
 
 
+async def sync_fixtures_for_days(db: Session, days_ahead: int = 7) -> int:
+    from_date = date.today().isoformat()
+    to_date = (date.today() + timedelta(days=days_ahead)).isoformat()
+    saved = 0
+    for code in COMPETITION_CODES:
+        try:
+            fixtures = await football_api.fetch_fixtures_by_competition(code, from_date, to_date)
+            for f in fixtures:
+                saved += _upsert_fixture(db, f)
+        except Exception:
+            pass
+    db.commit()
+    return saved
+
+
 async def sync_bulk_to_end_of_year(db: Session) -> int:
     """Pobiera wszystkie mecze wybranych turniejow do konca roku."""
     from_date = date.today().isoformat()
