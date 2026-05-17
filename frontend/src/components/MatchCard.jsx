@@ -73,7 +73,7 @@ export default function MatchCard({ match, prediction }) {
     <div className="bg-gray-900 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>{match.league.name} · {match.league.country}</span>
-        <span className={match.status === 'live' ? 'text-red-400 font-bold animate-pulse' : ''}>
+        <span className={match.status === 'live' ? 'text-red-500 font-bold animate-pulse' : ''}>
           {STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
         </span>
       </div>
@@ -89,12 +89,12 @@ export default function MatchCard({ match, prediction }) {
             <div className="text-xs text-gray-500 mb-0.5">{timeStr}</div>
           )}
           {match.status === 'live' && match.minute != null && (
-            <div className="text-xs text-red-400 font-semibold animate-pulse mb-0.5">{match.minute}'</div>
+            <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{match.minute}'</div>
           )}
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (
-            <span className="text-xl text-red-400">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
+            <span className="text-xl text-red-500">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
           ) : (
             <span className="text-gray-500">vs</span>
           )}
@@ -137,7 +137,7 @@ export default function MatchCard({ match, prediction }) {
                 {mutation.isPending ? '...' : saved ? 'Zmień' : 'Typuj'}
               </button>
               {mutation.isError && (
-                <span className="text-red-400 text-xs">{mutation.error?.response?.data?.detail}</span>
+                <span className="text-red-500 text-xs">{mutation.error?.response?.data?.detail}</span>
               )}
             </div>
           )}
