@@ -53,8 +53,17 @@ def list_invite_codes(
     _: User = Depends(get_admin_user),
 ):
     from datetime import datetime, timezone
-    codes = db.query(InviteCode).order_by(InviteCode.created_at.desc()).limit(50).all()
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+    codes = (
+        db.query(InviteCode)
+        .filter(
+            (InviteCode.used_by_id.is_(None)) |
+            (InviteCode.expires_at > now)
+        )
+        .order_by(InviteCode.created_at.desc())
+        .limit(50)
+        .all()
+    )
     return [
         {
             "id": c.id,
