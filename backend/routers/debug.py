@@ -41,19 +41,41 @@ async def debug_apicheck():
 
 @router.get("/sync-check")
 async def debug_sync_check():
-    """Sprawdza ile meczow zwraca API per liga, bez zapisywania."""
+    """Sprawdza co API zwraca dla dzisiejszej daty i rozne sezony per liga."""
     from services import football_api
     from datetime import date
+    import httpx
+    from core.config import settings
 
-    from_date = date.today().isoformat()
-    to_date = f"{date.today().year}-12-31"
-    leagues = [(1, 2026, "World Cup"), (10, 2026, "Friendlies"), (106, 2025, "Ekstraklasa")]
+    today = date.today().isoformat()
     results = {}
-    for league_id, season, name in leagues:
+
+    # 1. Co jest dzisiaj (bez filtra ligi)
+    try:
+        today_fixtures = await football_api.fetch_fixtures(today)
+        results["today_all"] = {
+            "count": len(today_fixtures),
+            "leagues": list({f["league"]["id"]: f["league"]["name"] for f in today_fixtures}.items())[:10],
+        }
+    except Exception as e:
+        results["today_all"] = {"error": str(e)}
+
+    # 2. Sprawdz rozne sezony per liga
+    checks = [
+        (1, 2026, "WorldCup_s2026"),
+        (10, 2026, "Friendlies_s2026"),
+        (10, 2025, "Friendlies_s2025"),
+        (106, 2025, "Ekstraklasa_s2025"),
+        (106, 2026, "Ekstraklasa_s2026"),
+    ]
+    from_date = today
+    to_date = f"{date.today().year}-12-31"
+
+    for league_id, season, key in checks:
         try:
             fixtures = await football_api.fetch_fixtures_by_league_season(league_id, season, from_date, to_date)
-            sample = [{"date": f["fixture"]["date"][:10], "home": f["teams"]["home"]["name"], "away": f["teams"]["away"]["name"]} for f in fixtures[:3]]
-            results[name] = {"count": len(fixtures), "sample": sample}
+            results[key] = len(fixtures)
         except Exception as e:
-            results[name] = {"error": str(e)}
+            results[key] = f"error: {e}"
+
     return results
