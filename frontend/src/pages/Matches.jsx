@@ -24,11 +24,16 @@ export default function Matches() {
   const [searchParams] = useSearchParams()
   const [selectedLeague, setSelectedLeague] = useState(searchParams.get('live') === '1' ? LIVE_KEY : null)
   const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedLiveLeague, setSelectedLiveLeague] = useState(null)
   const dateNavRef = useRef(null)
   const isLiveMode = selectedLeague === LIVE_KEY
 
   useEffect(() => {
-    if (searchParams.get('live') === '1') setSelectedLeague(LIVE_KEY)
+    if (searchParams.get('live') === '1') {
+      setSelectedLeague(LIVE_KEY)
+    } else if (isLiveMode) {
+      setSelectedLeague(leagues.length > 0 ? leagues[0].id : null)
+    }
   }, [searchParams])
 
   const { data: leagues = [] } = useQuery({
@@ -91,7 +96,15 @@ export default function Matches() {
   const predMap = {}
   predsData?.forEach(p => { predMap[p.match_id] = p })
 
-  const matches = isLiveMode ? (liveData?.matches ?? []) : (data?.matches ?? [])
+  const allLiveMatches = liveData?.matches ?? []
+  const liveLeagues = isLiveMode
+    ? [...new Map(allLiveMatches.map(m => [m.league.id, m.league])).values()]
+    : []
+  const filteredLiveMatches = selectedLiveLeague
+    ? allLiveMatches.filter(m => m.league.id === selectedLiveLeague)
+    : allLiveMatches
+
+  const matches = isLiveMode ? filteredLiveMatches : (data?.matches ?? [])
   const loading = isLiveMode ? liveLoading : isLoading
 
   const prevDate = () => {
@@ -115,20 +128,43 @@ export default function Matches() {
     <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
       {/* Liga selector */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        {leagues.map(l => (
-          <button
-            key={l.id}
-            onClick={() => setSelectedLeague(l.id)}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-              selectedLeague === l.id
-                ? 'bg-brand-600 text-white'
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-            }`}
-          >
-            {l.logo_url && <img src={l.logo_url} className="w-4 h-4 object-contain" alt="" />}
-            {l.name}
-          </button>
-        ))}
+        {isLiveMode ? (
+          <>
+            <button
+              onClick={() => setSelectedLiveLeague(null)}
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                selectedLiveLeague === null ? 'bg-brand-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+              }`}
+            >
+              Wszystkie
+            </button>
+            {liveLeagues.map(l => (
+              <button
+                key={l.id}
+                onClick={() => setSelectedLiveLeague(l.id)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                  selectedLiveLeague === l.id ? 'bg-brand-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                }`}
+              >
+                {l.logo_url && <img src={l.logo_url} className="w-4 h-4 object-contain" alt="" />}
+                {l.name}
+              </button>
+            ))}
+          </>
+        ) : (
+          leagues.map(l => (
+            <button
+              key={l.id}
+              onClick={() => setSelectedLeague(l.id)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                selectedLeague === l.id ? 'bg-brand-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+              }`}
+            >
+              {l.logo_url && <img src={l.logo_url} className="w-4 h-4 object-contain" alt="" />}
+              {l.name}
+            </button>
+          ))
+        )}
       </div>
 
       {/* Nawigacja po dniach — ukryta w trybie live */}
