@@ -10,7 +10,11 @@ function LiveMinute({ kickoff, statusShort }) {
     const total = Math.floor((Date.now() - kickoff.getTime()) / 60000)
     if (statusShort === '2H') return Math.min(90, Math.max(46, total - 15))
     if (statusShort === 'ET') return Math.min(120, Math.max(91, total - 30))
-    return Math.min(45, Math.max(1, total))
+    if (statusShort === '1H') return Math.min(45, Math.max(1, total))
+    // status_short nieznany — heurystyka na podstawie czasu
+    if (total <= 45) return Math.max(1, total)
+    if (total <= 60) return 45
+    return Math.min(90, total - 15)
   }
   const [minute, setMinute] = useState(calc)
   useEffect(() => {
