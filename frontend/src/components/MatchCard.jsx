@@ -75,7 +75,6 @@ export default function MatchCard({ match, prediction }) {
         <span>{match.league.name} · {match.league.country}</span>
         <span className={match.status === 'live' ? 'text-red-400 font-bold animate-pulse' : ''}>
           {STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
-          {match.status === 'scheduled' && ` · ${timeStr}`}
         </span>
       </div>
 
