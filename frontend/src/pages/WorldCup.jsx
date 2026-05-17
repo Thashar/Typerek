@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { format, parseISO } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import api from '../api/client'
 import { myPredictions } from '../api/predictions'
@@ -14,7 +14,7 @@ const STATUS_LABEL = {
 }
 
 function MatchRow({ m, prediction }) {
-  const kickoff = parseISO(m.kickoff)
+  const kickoff = new Date(m.kickoff + 'Z')
   const isFinished = m.status === 'FINISHED'
   const isLive = m.status === 'LIVE'
 
@@ -24,7 +24,7 @@ function MatchRow({ m, prediction }) {
         <div className="w-12 text-xs text-right shrink-0">
           {isLive
             ? <span className="text-red-400 font-bold">LIVE</span>
-            : <span className="text-gray-500">{format(kickoff, 'HH:mm')}</span>
+            : <span className="text-gray-500">{formatInTimeZone(kickoff, 'Europe/Warsaw', 'HH:mm')}</span>
           }
         </div>
         <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
@@ -44,7 +44,7 @@ function MatchRow({ m, prediction }) {
           </div>
         </div>
         <div className="w-14 text-xs text-gray-500 shrink-0 text-right">
-          {format(kickoff, 'd MMM', { locale: pl })}
+          {formatInTimeZone(kickoff, 'Europe/Warsaw', 'd MMM', { locale: pl })}
         </div>
       </div>
       {prediction && (

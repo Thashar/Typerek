@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { submitPrediction } from '../api/predictions'
@@ -51,8 +51,8 @@ export default function MatchCard({ match, prediction }) {
   })
 
   const kickoff = new Date(match.kickoff + 'Z')
-  const timeStr = format(kickoff, 'HH:mm', { locale: pl })
-  const dateStr = format(kickoff, 'd MMM', { locale: pl })
+  const timeStr = formatInTimeZone(kickoff, 'Europe/Warsaw', 'HH:mm', { locale: pl })
+  const dateStr = formatInTimeZone(kickoff, 'Europe/Warsaw', 'd MMM', { locale: pl })
 
   const pts = prediction?.points
 
