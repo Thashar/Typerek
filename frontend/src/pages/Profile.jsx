@@ -27,6 +27,79 @@ function resizeToBase64(file) {
   })
 }
 
+function ChangeUsernameForm({ onUpdated }) {
+  const [open, setOpen] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const reset = () => { setOpen(false); setNewUsername(''); setPassword(''); setError('') }
+
+  const handle = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await api.put('/users/me/username', { new_username: newUsername, password })
+      await onUpdated()
+      reset()
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      setError(Array.isArray(detail) ? detail.map(d => d.msg).join(', ') : detail || 'Błąd')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="text-xs text-gray-500 hover:text-gray-300 transition">
+        Zmień nick
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={handle} className="mt-3 space-y-2 border-t border-gray-800 pt-3">
+      {error && <p className="text-red-400 text-xs bg-red-950 rounded px-3 py-1.5">{error}</p>}
+      <div>
+        <label className="block text-xs text-gray-400 mb-1">Nowa nazwa użytkownika</label>
+        <input
+          className="w-full bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          value={newUsername}
+          onChange={e => setNewUsername(e.target.value)}
+          required minLength={3} maxLength={50}
+          autoFocus
+        />
+        <p className="text-xs text-gray-600 mt-0.5">Tylko litery (a–z, A–Z), cyfry i _</p>
+      </div>
+      <div>
+        <label className="block text-xs text-gray-400 mb-1">Aktualne hasło</label>
+        <input
+          type="password"
+          className="w-full bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg text-sm font-semibold transition"
+        >
+          {loading ? '...' : 'Zapisz'}
+        </button>
+        <button type="button" onClick={reset} className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
+          Anuluj
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function Avatar({ user, onUpdated }) {
   const fileRef = useRef(null)
   const [loading, setLoading] = useState(false)
@@ -119,6 +192,7 @@ export default function Profile() {
             <div className="min-w-0">
               <h2 className="text-xl font-bold truncate">{user?.username}</h2>
               <p className="text-gray-400 text-sm truncate">{user?.email}</p>
+              <ChangeUsernameForm onUpdated={refreshUser} />
             </div>
           </div>
           <button onClick={handleLogout} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition shrink-0">

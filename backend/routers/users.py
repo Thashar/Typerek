@@ -4,12 +4,37 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from routers.deps import get_current_user
 from models.user import User
+from core.security import verify_password
+import re
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 class AvatarRequest(BaseModel):
     avatar: str
+
+
+class ChangeUsernameRequest(BaseModel):
+    new_username: str
+    password: str
+
+
+@router.put("/me/username")
+def change_username(
+    body: ChangeUsernameRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new = body.new_username.strip()
+    if not re.match(r"^[a-zA-Z0-9_]{3,50}$", new):
+        raise HTTPException(status_code=400, detail="Nazwa użytkownika może zawierać tylko litery (a–z, A–Z), cyfry i _ (3–50 znaków)")
+    if not verify_password(body.password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Nieprawidłowe hasło")
+    if db.query(User).filter(User.username == new, User.id != current_user.id).first():
+        raise HTTPException(status_code=400, detail="Ta nazwa użytkownika jest już zajęta")
+    current_user.username = new
+    db.commit()
+    return {"detail": "ok"}
 
 
 @router.put("/me/avatar")
