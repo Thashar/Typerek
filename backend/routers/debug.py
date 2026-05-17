@@ -78,41 +78,37 @@ async def debug_league_check():
 
 @router.get("/sync-check")
 async def debug_sync_check():
-    """Sprawdza co API zwraca dla dzisiejszej daty i rozne sezony per liga."""
+    """Sprawdza dostepnosc turniejow w football-data.org."""
     from services import football_api
     from datetime import date
-    import httpx
-    from core.config import settings
 
-    today = date.today().isoformat()
+    from_date = date.today().isoformat()
+    to_date = f"{date.today().year}-12-31"
     results = {}
 
-    # 1. Co jest dzisiaj (bez filtra ligi)
-    try:
-        today_fixtures = await football_api.fetch_fixtures(today)
-        results["today_all"] = {
-            "count": len(today_fixtures),
-            "leagues": list({f["league"]["id"]: f["league"]["name"] for f in today_fixtures}.items())[:10],
-        }
-    except Exception as e:
-        results["today_all"] = {"error": str(e)}
-
-    # 2. Sprawdz rozne sezony per liga
-    checks = [
-        (1, 2026, "WorldCup_s2026"),
-        (10, 2026, "Friendlies_s2026"),
-        (10, 2025, "Friendlies_s2025"),
-        (106, 2025, "Ekstraklasa_s2025"),
-        (106, 2026, "Ekstraklasa_s2026"),
-    ]
-    from_date = today
-    to_date = f"{date.today().year}-12-31"
-
-    for league_id, season, key in checks:
+    for code in ["WC", "NL", "EC"]:
         try:
-            fixtures = await football_api.fetch_fixtures_by_league_season(league_id, season, from_date, to_date)
-            results[key] = len(fixtures)
+            fixtures = await football_api.fetch_fixtures_by_competition(code, from_date, to_date)
+            sample = [{"date": f["fixture"].get("timestamp"), "home": f["teams"]["home"]["name"], "away": f["teams"]["away"]["name"]} for f in fixtures[:2]]
+            results[code] = {"count": len(fixtures), "sample": sample}
         except Exception as e:
-            results[key] = f"error: {e}"
+            results[code] = {"error": str(e)}
 
     return results
+
+
+@router.get("/sync/{comp_code}")
+async def debug_sync_comp(comp_code: str, db: Session = Depends(get_db)):
+    try:
+        from services import sync, football_api
+        from datetime import date
+        from_date = date.today().isoformat()
+        to_date = f"{date.today().year}-12-31"
+        fixtures = await football_api.fetch_fixtures_by_competition(comp_code.upper(), from_date, to_date)
+        saved = 0
+        for f in fixtures:
+            saved += sync._upsert_fixture(db, f)
+        db.commit()
+        return {"status": "ok", "competition": comp_code, "synced": saved}
+    except Exception as e:
+        return {"status": "error", "detail": str(e), "trace": traceback.format_exc()}
