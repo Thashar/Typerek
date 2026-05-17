@@ -8,6 +8,7 @@ import WorldCup from './pages/WorldCup'
 import Ranking from './pages/Ranking'
 import Profile from './pages/Profile'
 import Admin from './pages/Admin'
+import AdminUserProfile from './pages/AdminUserProfile'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/ranking" element={<Ranking />} />
 <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/users/:userId" element={<AdminUserProfile />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

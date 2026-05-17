@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { getSettings, updateSettings } from '../api/settings'
@@ -44,7 +44,10 @@ function UserRow({ u, currentUserId, onChanged }) {
   return (
     <div className="px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex-1 min-w-0">
-        <span className="font-medium text-white text-sm">{u.username}</span>
+        {!u.is_admin
+          ? <Link to={`/admin/users/${u.id}`} className="font-medium text-white text-sm hover:text-brand-400 transition">{u.username}</Link>
+          : <span className="font-medium text-white text-sm">{u.username}</span>
+        }
         {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded">admin</span>}
         {u.is_ranked
           ? <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">zweryfikowany</span>

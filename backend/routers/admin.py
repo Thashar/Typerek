@@ -71,6 +71,16 @@ def delete_user(
     db.commit()
 
 
+@router.get("/users/{user_id}/predictions")
+def user_predictions(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    from services.predictions import get_user_predictions
+    return get_user_predictions(db, user_id)
+
+
 @router.post("/users/{user_id}/verify")
 def verify_user(
     user_id: int,
