@@ -64,6 +64,7 @@ export default function Register() {
                   onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
                   required minLength={3} maxLength={50}
                 />
+                <p className="text-xs text-gray-500 mt-1">Tylko litery (a–z, A–Z), cyfry i znak podkreślenia _</p>
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Email</label>
