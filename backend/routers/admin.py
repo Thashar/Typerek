@@ -40,6 +40,7 @@ def admin_users(
             "email": u.email,
             "is_admin": u.is_admin,
             "is_active": u.is_active,
+            "is_ranked": u.is_ranked,
             "total_points": u.total_points,
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }

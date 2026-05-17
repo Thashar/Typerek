@@ -38,6 +38,7 @@ function UserRow({ u, currentUserId, onDeleted }) {
       <div className="flex-1 min-w-0">
         <span className="font-medium text-white text-sm">{u.username}</span>
         {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded">admin</span>}
+        {u.is_ranked && <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">zweryfikowany</span>}
         <div className="text-xs text-gray-500 mt-0.5 truncate">{u.email}</div>
       </div>
       <div className="text-right shrink-0">
