@@ -8,7 +8,7 @@ def send_email(to: str, subject: str, html: str) -> None:
 
     resp = httpx.post(
         "https://api.resend.com/emails",
-        headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+        headers={"Authorization": f"Bearer {settings.RESEND_API_KEY.strip()}"},
         json={"from": settings.RESEND_FROM, "to": [to], "subject": subject, "html": html},
         timeout=10,
     )
