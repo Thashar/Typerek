@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     CRON_SECRET: str = ""
     RESEND_API_KEY: str = ""
     RESEND_FROM: str = "Typerek <onboarding@resend.dev>"
-    FRONTEND_URL: str = "https://typerek.vercel.app"
+    FRONTEND_URL: str = "https://typerek-ngk.vercel.app"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
