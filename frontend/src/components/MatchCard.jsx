@@ -1,9 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { submitPrediction } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
+
+function LiveMinute({ kickoff }) {
+  const calc = () => Math.min(90, Math.max(1, Math.floor((Date.now() - kickoff.getTime()) / 60000)))
+  const [minute, setMinute] = useState(calc)
+  useEffect(() => {
+    const id = setInterval(() => setMinute(calc()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{minute}'</div>
+}
 
 const STATUS_LABELS = {
   scheduled: null,
@@ -85,9 +95,7 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
-          {match.status === 'live' && match.minute != null && (
-            <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{match.minute}'</div>
-          )}
+          {match.status === 'live' && <LiveMinute kickoff={kickoff} />}
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (
