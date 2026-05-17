@@ -45,14 +45,14 @@ export default function Matches() {
     queryKey: ['matches', selectedDate],
     queryFn: () => getMatches({ from_date: selectedDate, to_date: selectedDate }),
     enabled: !!selectedDate,
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   })
 
   const { data: predsData } = useQuery({
     queryKey: ['predictions'],
     queryFn: myPredictions,
     enabled: !!user,
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   })
 
   const predMap = {}
