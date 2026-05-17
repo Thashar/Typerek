@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
+from core.translations import translate_team
 from models.match import Match, MatchStatus
 from schemas.match import MatchResponse, MatchListResponse
 
@@ -57,7 +58,8 @@ def get_worldcup_matches(db: Session = Depends(get_db)):
     knockout = {}
     for m in matches:
         if m.stage == "GROUP_STAGE":
-            g = m.match_group or "?"
+            raw = m.match_group or "?"
+            g = raw.replace("GROUP_", "") if raw.startswith("GROUP_") else raw
             groups.setdefault(g, []).append(m)
         else:
             s = m.stage or "OTHER"
@@ -65,7 +67,9 @@ def get_worldcup_matches(db: Session = Depends(get_db)):
 
     def fmt(m):
         return {
-            "id": m.id, "home_team": m.home_team, "away_team": m.away_team,
+            "id": m.id,
+            "home_team": translate_team(m.home_team),
+            "away_team": translate_team(m.away_team),
             "home_team_logo": m.home_team_logo, "away_team_logo": m.away_team_logo,
             "kickoff": m.kickoff.isoformat(), "status": m.status,
             "home_score": m.home_score, "away_score": m.away_score,
