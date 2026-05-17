@@ -134,11 +134,11 @@ export default function Profile() {
           </div>
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-yellow-400">{exactHits}</p>
-            <p className="text-xs text-gray-400 mt-1">Dokładne ⭐ <span className="text-yellow-500">+{settings?.points_exact ?? 5}</span></p>
+            <p className="text-xs text-gray-400 mt-1">Dokładne ⭐</p>
           </div>
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-green-400">{outcomeHits}</p>
-            <p className="text-xs text-gray-400 mt-1">Wyniki ✓ <span className="text-green-500">+{settings?.points_outcome ?? 2}</span></p>
+            <p className="text-xs text-gray-400 mt-1">Wyniki ✓</p>
           </div>
         </div>
         <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs text-gray-400 space-y-0.5">
