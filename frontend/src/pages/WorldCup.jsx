@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import api from '../api/client'
+import { myPredictions } from '../api/predictions'
+import { useAuth } from '../context/AuthContext'
 
 const STATUS_LABEL = {
   SCHEDULED: '',
@@ -11,40 +13,51 @@ const STATUS_LABEL = {
   POSTPONED: 'Odłożony',
 }
 
-function MatchRow({ m }) {
+function MatchRow({ m, prediction }) {
   const kickoff = parseISO(m.kickoff)
   const isFinished = m.status === 'FINISHED'
   const isLive = m.status === 'LIVE'
 
   return (
-    <div className={`flex items-center gap-2 py-2 px-3 rounded-lg ${isLive ? 'bg-red-900/20' : ''}`}>
-      <div className="w-16 text-xs text-gray-500 text-right shrink-0">
-        {isLive
-          ? <span className="text-red-400 font-bold">LIVE</span>
-          : isFinished
-            ? <span className="text-gray-500">{format(kickoff, 'HH:mm')}</span>
-            : <span>{format(kickoff, 'HH:mm')}</span>
-        }
-      </div>
-      <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {m.home_team_logo && <img src={m.home_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
-          <span className="text-sm font-medium truncate">{m.home_team}</span>
-        </div>
-        <div className="shrink-0 text-center">
-          {isFinished || isLive
-            ? <span className="font-bold text-sm text-white">{m.home_score ?? 0} – {m.away_score ?? 0}</span>
-            : <span className="text-gray-500 text-xs">vs</span>
+    <div className={`py-2 px-3 rounded-lg ${isLive ? 'bg-red-900/20' : ''}`}>
+      <div className="flex items-center gap-2">
+        <div className="w-12 text-xs text-right shrink-0">
+          {isLive
+            ? <span className="text-red-400 font-bold">LIVE</span>
+            : <span className="text-gray-500">{format(kickoff, 'HH:mm')}</span>
           }
         </div>
-        <div className="flex items-center gap-1.5 justify-end min-w-0">
-          <span className="text-sm font-medium truncate">{m.away_team}</span>
-          {m.away_team_logo && <img src={m.away_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
+        <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {m.home_team_logo && <img src={m.home_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
+            <span className="text-sm font-medium truncate">{m.home_team}</span>
+          </div>
+          <div className="shrink-0 text-center">
+            {isFinished || isLive
+              ? <span className="font-bold text-sm text-white">{m.home_score ?? 0} – {m.away_score ?? 0}</span>
+              : <span className="text-gray-500 text-xs">vs</span>
+            }
+          </div>
+          <div className="flex items-center gap-1.5 justify-end min-w-0">
+            <span className="text-sm font-medium truncate">{m.away_team}</span>
+            {m.away_team_logo && <img src={m.away_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
+          </div>
+        </div>
+        <div className="w-14 text-xs text-gray-500 shrink-0 text-right">
+          {format(kickoff, 'd MMM', { locale: pl })}
         </div>
       </div>
-      <div className="w-16 text-xs text-gray-500 shrink-0">
-        {format(kickoff, 'd MMM', { locale: pl })}
-      </div>
+      {prediction && (
+        <div className="mt-1 ml-14 flex items-center gap-2">
+          <span className="text-xs text-gray-500">Twój typ:</span>
+          <span className="text-xs font-bold text-brand-400">{prediction.predicted_home}–{prediction.predicted_away}</span>
+          {prediction.points != null && (
+            <span className={`text-xs font-bold ${prediction.points > 0 ? 'text-green-400' : 'text-gray-500'}`}>
+              +{prediction.points} pkt
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -57,20 +70,20 @@ const STAGE_LABELS = {
   FINAL: 'Finał',
 }
 
-function GroupCard({ name, matches }) {
+function GroupCard({ name, matches, predMap }) {
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden">
       <div className="px-3 py-2 bg-gray-750 border-b border-gray-700">
         <h3 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Grupa {name}</h3>
       </div>
       <div className="divide-y divide-gray-700/50">
-        {matches.map(m => <MatchRow key={m.id} m={m} />)}
+        {matches.map(m => <MatchRow key={m.id} m={m} prediction={predMap[m.id]} />)}
       </div>
     </div>
   )
 }
 
-function KnockoutSection({ stage, matches }) {
+function KnockoutSection({ stage, matches, predMap }) {
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden">
       <div className="px-3 py-2 border-b border-gray-700">
@@ -79,7 +92,7 @@ function KnockoutSection({ stage, matches }) {
         </h3>
       </div>
       <div className="divide-y divide-gray-700/50">
-        {matches.map(m => <MatchRow key={m.id} m={m} />)}
+        {matches.map(m => <MatchRow key={m.id} m={m} prediction={predMap[m.id]} />)}
       </div>
     </div>
   )
@@ -89,6 +102,7 @@ const KNOCKOUT_ORDER = ['ROUND_OF_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_P
 
 export default function WorldCup() {
   const [tab, setTab] = useState('groups')
+  const { user } = useAuth()
 
   const { data, isLoading } = useQuery({
     queryKey: ['worldcup'],
@@ -96,6 +110,16 @@ export default function WorldCup() {
     refetchInterval: 60000,
     staleTime: 60000,
   })
+
+  const { data: predsData } = useQuery({
+    queryKey: ['predictions'],
+    queryFn: myPredictions,
+    enabled: !!user,
+    refetchInterval: 60000,
+  })
+
+  const predMap = {}
+  predsData?.forEach(p => { predMap[p.match_id] = p })
 
   const groups = data?.groups ?? {}
   const knockout = data?.knockout ?? {}
@@ -143,7 +167,7 @@ export default function WorldCup() {
         <div className="space-y-3">
           {hasGroups
             ? Object.entries(groups).map(([name, matches]) => (
-                <GroupCard key={name} name={name} matches={matches} />
+                <GroupCard key={name} name={name} matches={matches} predMap={predMap} />
               ))
             : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów grupowych</p>
           }
@@ -154,7 +178,7 @@ export default function WorldCup() {
         <div className="space-y-3">
           {hasKnockout
             ? KNOCKOUT_ORDER.filter(s => knockout[s]).map(stage => (
-                <KnockoutSection key={stage} stage={stage} matches={knockout[stage]} />
+                <KnockoutSection key={stage} stage={stage} matches={knockout[stage]} predMap={predMap} />
               ))
             : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów fazy pucharowej</p>
           }

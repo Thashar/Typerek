@@ -1,11 +1,102 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { myPredictions } from '../api/predictions'
+import { myPredictions, submitPrediction, deletePrediction } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
-import { format } from 'date-fns'
-import { pl } from 'date-fns/locale'
 
 const STATUS_LABELS = { scheduled: 'Oczekuje', live: 'LIVE', finished: 'Zakończony', postponed: 'Przełożony', cancelled: 'Odwołany' }
+
+function PredRow({ p, onSaved }) {
+  const qc = useQueryClient()
+  const isScheduled = p.match.status === 'scheduled'
+  const [editing, setEditing] = useState(false)
+  const [home, setHome] = useState(p.predicted_home)
+  const [away, setAway] = useState(p.predicted_away)
+
+  const saveMut = useMutation({
+    mutationFn: () => submitPrediction({ match_id: p.match_id, predicted_home: home, predicted_away: away }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['predictions'] }); setEditing(false) },
+  })
+
+  const delMut = useMutation({
+    mutationFn: () => deletePrediction(p.match_id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['predictions'] }),
+  })
+
+  return (
+    <div className="bg-gray-900 rounded-xl px-4 py-3 space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">{p.match.home_team} – {p.match.away_team}</p>
+          <p className="text-xs text-gray-500">{p.match.league.name}</p>
+        </div>
+
+        {!editing && (
+          <button
+            onClick={() => isScheduled && setEditing(true)}
+            className={`text-center text-sm shrink-0 ${isScheduled ? 'cursor-pointer hover:text-brand-400 transition' : 'cursor-default'}`}
+            title={isScheduled ? 'Kliknij, aby zmienić typ' : undefined}
+          >
+            <span className="font-bold">{p.predicted_home}–{p.predicted_away}</span>
+            {p.match.status === 'finished' && (
+              <span className="block text-xs text-gray-500">{p.match.home_score}–{p.match.away_score}</span>
+            )}
+          </button>
+        )}
+
+        <div className="w-16 text-right shrink-0">
+          {p.points != null ? (
+            <span className={`font-bold ${p.points > 0 ? 'text-green-400' : 'text-gray-500'}`}>+{p.points} pkt</span>
+          ) : (
+            <span className="text-xs text-gray-500">{STATUS_LABELS[p.match.status]}</span>
+          )}
+        </div>
+
+        {isScheduled && !editing && (
+          <button
+            onClick={() => delMut.mutate()}
+            disabled={delMut.isPending}
+            className="text-gray-600 hover:text-red-400 transition text-lg leading-none disabled:opacity-40"
+            title="Usuń typ"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {editing && (
+        <div className="flex items-center gap-2 pt-1 border-t border-gray-800">
+          <input
+            type="number" min="0" max="20"
+            value={home}
+            onChange={e => setHome(Math.max(0, parseInt(e.target.value) || 0))}
+            className="w-12 text-center bg-gray-700 rounded-lg py-1.5 font-bold text-lg outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <span className="text-gray-500">–</span>
+          <input
+            type="number" min="0" max="20"
+            value={away}
+            onChange={e => setAway(Math.max(0, parseInt(e.target.value) || 0))}
+            className="w-12 text-center bg-gray-700 rounded-lg py-1.5 font-bold text-lg outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <button
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending}
+            className="ml-auto px-4 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 rounded-lg text-sm font-semibold transition"
+          >
+            {saveMut.isPending ? '...' : 'Zapisz'}
+          </button>
+          <button
+            onClick={() => { setHome(p.predicted_home); setAway(p.predicted_away); setEditing(false) }}
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
+          >
+            Anuluj
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Profile() {
   const { user, logout } = useAuth()
@@ -52,25 +143,7 @@ export default function Profile() {
       <div className="space-y-2">
         {predictions.length === 0 && <p className="text-gray-500 text-center py-8">Brak typów</p>}
         {predictions.map(p => (
-          <div key={p.id} className="bg-gray-900 rounded-xl px-4 py-3 flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{p.match.home_team} – {p.match.away_team}</p>
-              <p className="text-xs text-gray-500">{p.match.league.name}</p>
-            </div>
-            <div className="text-center text-sm shrink-0">
-              <p className="font-bold">{p.predicted_home}–{p.predicted_away}</p>
-              {p.match.status === 'finished' && (
-                <p className="text-xs text-gray-500">{p.match.home_score}–{p.match.away_score}</p>
-              )}
-            </div>
-            <div className="w-16 text-right shrink-0">
-              {p.points != null ? (
-                <span className={`font-bold ${p.points > 0 ? 'text-green-400' : 'text-gray-500'}`}>+{p.points} pkt</span>
-              ) : (
-                <span className="text-xs text-gray-500">{STATUS_LABELS[p.match.status]}</span>
-              )}
-            </div>
-          </div>
+          <PredRow key={p.id} p={p} />
         ))}
       </div>
     </div>

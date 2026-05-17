@@ -56,3 +56,19 @@ def get_match_prediction(db: Session, user_id: int, match_id: int) -> Prediction
         Prediction.user_id == user_id,
         Prediction.match_id == match_id,
     ).first()
+
+
+def delete_prediction(db: Session, user_id: int, match_id: int) -> None:
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Mecz nie istnieje")
+    if match.status != MatchStatus.SCHEDULED:
+        raise HTTPException(status_code=400, detail="Nie można usunąć — mecz już się rozpoczął")
+    pred = db.query(Prediction).filter(
+        Prediction.user_id == user_id,
+        Prediction.match_id == match_id,
+    ).first()
+    if not pred:
+        raise HTTPException(status_code=404, detail="Typ nie istnieje")
+    db.delete(pred)
+    db.commit()
