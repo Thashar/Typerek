@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
 from schemas.user import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, UserResponse
@@ -11,7 +11,19 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    from datetime import datetime, timezone
+    from models.invite_code import InviteCode
+
+    code = db.query(InviteCode).filter(InviteCode.code == body.invite_code.upper()).first()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not code or code.used_by_id is not None or now > code.expires_at:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły kod zaproszenia")
+
     user = register_user(db, body.username, body.email, body.password)
+
+    code.used_by_id = user.id
+    code.used_at = now
+    db.commit()
     return user
 
 

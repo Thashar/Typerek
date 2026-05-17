@@ -5,6 +5,7 @@ from routers.deps import get_admin_user
 from models.user import User
 from models.match import Match, MatchStatus
 from models.prediction import Prediction
+from models.invite_code import InviteCode
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -44,6 +45,52 @@ def admin_users(
         }
         for u in users
     ]
+
+
+@router.get("/invite-codes")
+def list_invite_codes(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    from datetime import datetime, timezone
+    codes = db.query(InviteCode).order_by(InviteCode.created_at.desc()).limit(50).all()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return [
+        {
+            "id": c.id,
+            "code": c.code,
+            "expires_at": c.expires_at.isoformat(),
+            "is_used": c.used_by_id is not None,
+            "is_expired": now > c.expires_at,
+            "used_by_id": c.used_by_id,
+        }
+        for c in codes
+    ]
+
+
+@router.post("/invite-codes")
+def generate_invite_code(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    code = InviteCode.generate(db)
+    db.add(code)
+    db.commit()
+    db.refresh(code)
+    return {"code": code.code, "expires_at": code.expires_at.isoformat()}
+
+
+@router.delete("/invite-codes/{code_str}")
+def delete_invite_code(
+    code_str: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    code = db.query(InviteCode).filter(InviteCode.code == code_str.upper()).first()
+    if code:
+        db.delete(code)
+        db.commit()
+    return {"deleted": True}
 
 
 @router.post("/sync-all")

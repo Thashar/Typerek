@@ -7,6 +7,7 @@ import models.league
 import models.match
 import models.prediction
 import models.private_league
+import models.invite_code
 
 from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin
 
