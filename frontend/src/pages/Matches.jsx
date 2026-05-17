@@ -38,17 +38,17 @@ export default function Matches() {
         <button onClick={() => setDate(d => addDays(d, 1))} className="p-2 hover:bg-gray-800 rounded-lg transition">›</button>
       </div>
 
-      <div className="flex gap-2">
-        {[-1, 0, 1, 2, 3].map(offset => {
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {[-1, 0, 1, 2, 3, 4, 5, 6, 7].map(offset => {
           const d = addDays(new Date(), offset)
           const active = format(d, 'yyyy-MM-dd') === dateStr
           return (
             <button
               key={offset}
               onClick={() => setDate(d)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${active ? 'bg-brand-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${active ? 'bg-brand-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
             >
-              {offset === 0 ? 'Dziś' : format(d, 'd.MM')}
+              {offset === 0 ? 'Dziś' : offset === 1 ? 'Jutro' : format(d, 'd.MM')}
             </button>
           )
         })}

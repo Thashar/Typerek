@@ -17,12 +17,7 @@ export default function Admin() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [syncMsg, setSyncMsg] = useState(null)
-
-  if (!user?.is_admin) {
-    navigate('/')
-    return null
-  }
+  const [syncResults, setSyncResults] = useState({})
 
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
@@ -34,14 +29,30 @@ export default function Admin() {
     queryFn: () => api.get('/admin/users').then(r => r.data),
   })
 
-  const syncMutation = useMutation({
-    mutationFn: () => api.post('/admin/sync').then(r => r.data),
-    onSuccess: (data) => {
-      setSyncMsg(`Zsynchronizowano ${data.synced} meczów`)
-      queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
-    },
-    onError: () => setSyncMsg('Błąd synchronizacji'),
+  const makeOnSuccess = (leagueId) => (data) => {
+    setSyncResults(prev => ({ ...prev, [leagueId]: `✓ ${data.synced} meczów` }))
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
+  }
+  const makeOnError = (leagueId) => () =>
+    setSyncResults(prev => ({ ...prev, [leagueId]: '✗ błąd' }))
+
+  const syncWC = useMutation({
+    mutationFn: () => api.post('/admin/sync/1').then(r => r.data),
+    onSuccess: makeOnSuccess(1), onError: makeOnError(1),
   })
+  const syncFriendlies = useMutation({
+    mutationFn: () => api.post('/admin/sync/10').then(r => r.data),
+    onSuccess: makeOnSuccess(10), onError: makeOnError(10),
+  })
+  const syncEkstra = useMutation({
+    mutationFn: () => api.post('/admin/sync/106').then(r => r.data),
+    onSuccess: makeOnSuccess(106), onError: makeOnError(106),
+  })
+
+  if (!user?.is_admin) {
+    navigate('/')
+    return null
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -56,15 +67,27 @@ export default function Admin() {
 
       <div className="bg-gray-800 rounded-xl p-4 space-y-3">
         <h2 className="font-semibold text-white">Synchronizacja meczów</h2>
-        <p className="text-xs text-gray-400">Zaciąga mecze World Cup, Friendlies i Ekstraklasy do końca roku.</p>
-        <button
-          onClick={() => { setSyncMsg(null); syncMutation.mutate() }}
-          disabled={syncMutation.isPending}
-          className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
-        >
-          {syncMutation.isPending ? 'Synchronizuję...' : 'Synchronizuj mecze'}
-        </button>
-        {syncMsg && <p className="text-sm text-green-400">{syncMsg}</p>}
+        <p className="text-xs text-gray-400">Kliknij każdy przycisk osobno — zaciąga mecze do końca roku.</p>
+        <div className="flex flex-col gap-2">
+          {[
+            { m: syncWC, id: 1, label: '🌍 World Cup 2026' },
+            { m: syncFriendlies, id: 10, label: '🤝 International Friendlies' },
+            { m: syncEkstra, id: 106, label: '🦅 Ekstraklasa' },
+          ].map(({ m, id, label }) => (
+            <div key={id} className="flex items-center gap-3">
+              <button
+                onClick={() => m.mutate()}
+                disabled={m.isPending}
+                className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition min-w-[220px] text-left"
+              >
+                {m.isPending ? 'Synchronizuję...' : label}
+              </button>
+              {syncResults[id] && (
+                <span className="text-sm text-green-400">{syncResults[id]}</span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">
