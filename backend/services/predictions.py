@@ -51,6 +51,20 @@ def get_user_predictions(db: Session, user_id: int) -> list[Prediction]:
     )
 
 
+def get_public_predictions(db: Session, user_id: int) -> list[Prediction]:
+    return (
+        db.query(Prediction)
+        .options(joinedload(Prediction.match).joinedload(Match.league))
+        .join(Match)
+        .filter(
+            Prediction.user_id == user_id,
+            Match.status.in_([MatchStatus.FINISHED, MatchStatus.LIVE]),
+        )
+        .order_by(Match.kickoff.desc())
+        .all()
+    )
+
+
 def get_match_prediction(db: Session, user_id: int, match_id: int) -> Prediction | None:
     return db.query(Prediction).filter(
         Prediction.user_id == user_id,

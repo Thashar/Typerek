@@ -38,6 +38,15 @@ def my_prediction_for_match(
     return svc.get_match_prediction(db, current_user.id, match_id)
 
 
+@router.get("/user/{user_id}", response_model=list[PredictionResponse])
+def user_predictions(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    return svc.get_public_predictions(db, user_id)
+
+
 @router.delete("/match/{match_id}", status_code=204)
 def delete_prediction(
     match_id: int,
