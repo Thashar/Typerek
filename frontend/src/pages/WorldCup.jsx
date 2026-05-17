@@ -19,36 +19,35 @@ function MatchRow({ m, prediction }) {
   const isLive = m.status === 'LIVE'
 
   return (
-    <div className={`py-2 px-3 rounded-lg ${isLive ? 'bg-red-900/20' : ''}`}>
+    <div className={`py-3 px-3 ${isLive ? 'bg-red-900/20' : ''}`}>
+      <div className="text-center text-xs mb-1.5">
+        {isLive
+          ? <span className="text-red-400 font-bold">LIVE</span>
+          : <span className="text-gray-500">
+              {formatInTimeZone(kickoff, 'Europe/Warsaw', 'HH:mm')}
+              <span className="mx-1 text-gray-700">·</span>
+              {formatInTimeZone(kickoff, 'Europe/Warsaw', 'd MMM', { locale: pl })}
+            </span>
+        }
+      </div>
       <div className="flex items-center gap-2">
-        <div className="w-12 text-xs text-right shrink-0">
-          {isLive
-            ? <span className="text-red-400 font-bold">LIVE</span>
-            : <span className="text-gray-500">{formatInTimeZone(kickoff, 'Europe/Warsaw', 'HH:mm')}</span>
+        <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
+          <span className="text-sm font-medium text-right truncate">{m.home_team}</span>
+          {m.home_team_logo && <img src={m.home_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
+        </div>
+        <div className="shrink-0 w-14 text-center">
+          {isFinished || isLive
+            ? <span className="font-bold text-sm text-white">{m.home_score ?? 0}–{m.away_score ?? 0}</span>
+            : <span className="text-gray-500 text-xs">vs</span>
           }
         </div>
-        <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {m.home_team_logo && <img src={m.home_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
-            <span className="text-sm font-medium truncate">{m.home_team}</span>
-          </div>
-          <div className="shrink-0 text-center">
-            {isFinished || isLive
-              ? <span className="font-bold text-sm text-white">{m.home_score ?? 0} – {m.away_score ?? 0}</span>
-              : <span className="text-gray-500 text-xs">vs</span>
-            }
-          </div>
-          <div className="flex items-center gap-1.5 justify-end min-w-0">
-            <span className="text-sm font-medium truncate">{m.away_team}</span>
-            {m.away_team_logo && <img src={m.away_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
-          </div>
-        </div>
-        <div className="w-14 text-xs text-gray-500 shrink-0 text-right">
-          {formatInTimeZone(kickoff, 'Europe/Warsaw', 'd MMM', { locale: pl })}
+        <div className="flex-1 flex items-center gap-1.5 min-w-0">
+          {m.away_team_logo && <img src={m.away_team_logo} className="w-5 h-5 object-contain shrink-0" alt="" />}
+          <span className="text-sm font-medium truncate">{m.away_team}</span>
         </div>
       </div>
       {prediction && (
-        <div className="mt-1 ml-14 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center justify-center gap-2">
           <span className="text-xs text-gray-500">Twój typ:</span>
           <span className="text-xs font-bold text-brand-400">{prediction.predicted_home}–{prediction.predicted_away}</span>
           {prediction.points != null && (
