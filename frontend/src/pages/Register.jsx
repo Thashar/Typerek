@@ -17,7 +17,12 @@ export default function Register() {
       await register(form.username, form.email, form.password)
       setDone(true)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Błąd rejestracji')
+      const detail = err.response?.data?.detail
+      if (Array.isArray(detail)) {
+        setError(detail.map(d => d.msg).join(', '))
+      } else {
+        setError(detail || 'Błąd rejestracji')
+      }
     } finally {
       setLoading(false)
     }
@@ -43,6 +48,10 @@ export default function Register() {
               <Link to="/login" className="block text-center text-brand-500 hover:underline text-sm">
                 Przejdź do logowania
               </Link>
+              <p className="text-center text-gray-500 text-xs">
+                Mail nie dotarł?{' '}
+                <Link to="/resend-verification" className="text-brand-500 hover:underline">Wyślij ponownie</Link>
+              </p>
             </div>
           ) : (
             <form onSubmit={handle} className="space-y-4">
