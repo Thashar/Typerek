@@ -6,7 +6,6 @@ class RegisterRequest(BaseModel):
     username: str
     email: EmailStr
     password: str
-    invite_code: str
 
     @field_validator("username")
     @classmethod
@@ -46,6 +45,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_admin: bool
+    is_verified: bool | None
     total_points: int
 
     model_config = {"from_attributes": True}

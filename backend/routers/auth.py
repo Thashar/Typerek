@@ -25,33 +25,31 @@ class ResetPasswordRequest(BaseModel):
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    from datetime import datetime, timezone
-    from models.invite_code import InviteCode
+    user = register_user(db, body.username, body.email, body.password)
+    return user
 
-    code = db.query(InviteCode).filter(InviteCode.code == body.invite_code.upper()).first()
+
+class UseInviteRequest(BaseModel):
+    code: str
+
+
+@router.post("/use-invite")
+def use_invite(body: UseInviteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.invite_code import InviteCode
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    if current_user.is_verified:
+        raise HTTPException(status_code=400, detail="Konto jest już zweryfikowane")
+
+    code = db.query(InviteCode).filter(InviteCode.code == body.code.upper()).first()
     if not code or code.used_by_id is not None or now > code.expires_at:
         raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły kod zaproszenia")
 
-    user = register_user(db, body.username, body.email, body.password)
-
-    code.used_by_id = user.id
+    code.used_by_id = current_user.id
     code.used_at = now
+    current_user.is_verified = True
     db.commit()
-
-    expire = datetime.now(timezone.utc) + timedelta(hours=24)
-    token = jwt.encode(
-        {"sub": user.email, "type": "email_verify", "exp": expire},
-        settings.SECRET_KEY,
-        algorithm=settings.ALGORITHM,
-    )
-    try:
-        from core.email import send_verification_email
-        send_verification_email(user.email, token)
-    except Exception:
-        pass  # nie blokuj rejestracji jeśli mail nie doszedł
-
-    return user
+    return {"detail": "Konto zostało zweryfikowane. Jesteś teraz widoczny w rankingu."}
 
 
 @router.post("/login", response_model=TokenResponse)

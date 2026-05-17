@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { myPredictions, submitPrediction, deletePrediction } from '../api/predictions'
 import { getSettings } from '../api/settings'
 import { useAuth } from '../context/AuthContext'
+import api from '../api/client'
 
 const STATUS_LABELS = { scheduled: 'Oczekuje', live: 'LIVE', finished: 'Zakończony', postponed: 'Przełożony', cancelled: 'Odwołany' }
 
@@ -101,9 +102,46 @@ function PredRow({ p, onSaved }) {
   )
 }
 
+function VerifyBanner({ onVerified }) {
+  const [code, setCode] = useState('')
+  const [msg, setMsg] = useState(null)
+  const mut = useMutation({
+    mutationFn: () => api.post('/auth/use-invite', { code }).then(r => r.data),
+    onSuccess: (data) => { setMsg({ ok: true, text: data.detail }); onVerified() },
+    onError: (e) => setMsg({ ok: false, text: e.response?.data?.detail || 'Błąd weryfikacji' }),
+  })
+
+  return (
+    <div className="bg-yellow-950/60 border border-yellow-700/50 rounded-xl p-4 space-y-3">
+      <div>
+        <p className="text-yellow-300 font-semibold text-sm">Konto niezweryfikowane</p>
+        <p className="text-yellow-200/70 text-xs mt-0.5">Wpisz kod zaproszenia, aby pojawić się w rankingu.</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          className="flex-1 bg-gray-800 rounded-lg px-3 py-2 font-mono uppercase tracking-widest text-sm outline-none focus:ring-2 focus:ring-yellow-500"
+          value={code}
+          onChange={e => { setCode(e.target.value.toUpperCase()); setMsg(null) }}
+          placeholder="KOD"
+          maxLength={8}
+        />
+        <button
+          onClick={() => mut.mutate()}
+          disabled={mut.isPending || !code}
+          className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
+        >
+          {mut.isPending ? '...' : 'Weryfikuj'}
+        </button>
+      </div>
+      {msg && <p className={`text-xs ${msg.ok ? 'text-green-400' : 'text-red-400'}`}>{msg.text}</p>}
+    </div>
+  )
+}
+
 export default function Profile() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { data: preds } = useQuery({ queryKey: ['predictions'], queryFn: myPredictions })
   const { data: settings } = useQuery({ queryKey: ['game-settings'], queryFn: getSettings })
 
@@ -115,8 +153,14 @@ export default function Profile() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
+  const handleVerified = () => {
+    queryClient.invalidateQueries({ queryKey: ['me'] })
+    window.location.reload()
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      {user?.is_verified === false && <VerifyBanner onVerified={handleVerified} />}
       <div className="bg-gray-900 rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>

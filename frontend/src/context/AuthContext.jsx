@@ -25,9 +25,13 @@ export function AuthProvider({ children }) {
     return userData
   }
 
-  const register = async (username, email, password, invite_code) => {
-    await apiRegister({ username, email, password, invite_code })
-    // nie logujemy — czekamy na weryfikację e-mail
+  const register = async (username, email, password) => {
+    await apiRegister({ username, email, password })
+    const tokens = await apiLogin({ username, password })
+    localStorage.setItem('access_token', tokens.access_token)
+    localStorage.setItem('refresh_token', tokens.refresh_token)
+    const userData = await me()
+    setUser(userData)
   }
 
   const logout = () => {
