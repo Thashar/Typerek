@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import UpdateBanner from './components/UpdateBanner'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -17,6 +18,7 @@ import ResendVerification from './pages/ResendVerification'
 export default function App() {
   return (
     <AuthProvider>
+      <UpdateBanner />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
