@@ -1,11 +1,28 @@
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
 from models.match import Match, MatchStatus
 from schemas.match import MatchResponse, MatchListResponse
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
+
+
+@router.get("/dates")
+def get_match_dates(
+    from_date: date = Query(default_factory=date.today),
+    to_date: date = Query(default_factory=lambda: date.today() + timedelta(days=180)),
+    db: Session = Depends(get_db),
+):
+    results = (
+        db.query(func.date(Match.kickoff))
+        .filter(Match.kickoff >= from_date, Match.kickoff <= to_date + timedelta(days=1))
+        .distinct()
+        .order_by(func.date(Match.kickoff))
+        .all()
+    )
+    return [str(r[0]) for r in results if r[0]]
 
 
 @router.get("", response_model=MatchListResponse)

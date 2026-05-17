@@ -39,22 +39,21 @@ async def debug_apicheck():
         return {"status": "error", "detail": str(e)}
 
 
-@router.get("/sync")
-async def debug_sync(db: Session = Depends(get_db)):
-    try:
-        from services import sync
-        from services import football_api
-        from datetime import date
+@router.get("/sync-check")
+async def debug_sync_check():
+    """Sprawdza ile meczow zwraca API per liga, bez zapisywania."""
+    from services import football_api
+    from datetime import date
 
-        from_date = date.today().isoformat()
-        to_date = f"{date.today().year}-12-31"
-
-        results = {}
-        for league_id, season in sync.BULK_LEAGUES:
+    from_date = date.today().isoformat()
+    to_date = f"{date.today().year}-12-31"
+    leagues = [(1, 2026, "World Cup"), (10, 2026, "Friendlies"), (106, 2025, "Ekstraklasa")]
+    results = {}
+    for league_id, season, name in leagues:
+        try:
             fixtures = await football_api.fetch_fixtures_by_league_season(league_id, season, from_date, to_date)
-            results[f"league_{league_id}_s{season}"] = len(fixtures)
-
-        total = await sync.sync_bulk_to_end_of_year(db)
-        return {"status": "ok", "synced": total, "per_league": results}
-    except Exception as e:
-        return {"status": "error", "detail": str(e), "trace": traceback.format_exc()}
+            sample = [{"date": f["fixture"]["date"][:10], "home": f["teams"]["home"]["name"], "away": f["teams"]["away"]["name"]} for f in fixtures[:3]]
+            results[name] = {"count": len(fixtures), "sample": sample}
+        except Exception as e:
+            results[name] = {"error": str(e)}
+    return results
