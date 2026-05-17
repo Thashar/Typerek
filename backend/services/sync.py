@@ -22,7 +22,28 @@ def _parse_status(short: str) -> MatchStatus:
     return MatchStatus.SCHEDULED
 
 
-ALLOWED_LEAGUE_IDS = {1, 10}  # 1=World Cup, 10=International Friendlies
+# 1=World Cup, 10=International Friendlies, 106=Ekstraklasa
+ALLOWED_LEAGUE_IDS = {1, 10, 106}
+
+# (league_id, season) — Ekstraklasa ma sezon 2025 dla rozgrywek 2025/26
+BULK_LEAGUES = [
+    (1, 2026),    # FIFA World Cup 2026
+    (10, 2026),   # International Friendlies 2026
+    (106, 2025),  # Ekstraklasa 2025/26
+]
+
+
+async def sync_bulk_to_end_of_year(db: Session) -> int:
+    """Pobiera wszystkie mecze wybranych lig do konca roku (1 request na lige)."""
+    from_date = date.today().isoformat()
+    to_date = f"{date.today().year}-12-31"
+    saved = 0
+    for league_id, season in BULK_LEAGUES:
+        fixtures = await football_api.fetch_fixtures_by_league_season(league_id, season, from_date, to_date)
+        for f in fixtures:
+            saved += _upsert_fixture(db, f)
+    db.commit()
+    return saved
 
 
 async def sync_fixtures_for_days(db: Session, days_ahead: int = 7) -> int:

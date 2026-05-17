@@ -43,7 +43,7 @@ async def debug_apicheck():
 async def debug_sync(db: Session = Depends(get_db)):
     try:
         from services import sync
-        saved = await sync.sync_fixtures_for_days(db, days_ahead=3)
+        saved = await sync.sync_bulk_to_end_of_year(db)
         return {"status": "ok", "synced": saved}
     except Exception as e:
         return {"status": "error", "detail": str(e), "trace": traceback.format_exc()}

@@ -31,6 +31,18 @@ async def fetch_fixtures(date: str) -> list[dict]:
     return data.get("response", [])
 
 
+async def fetch_fixtures_by_league_season(league_id: int, season: int, from_date: str, to_date: str) -> list[dict]:
+    """Pobiera wszystkie mecze danej ligi w sezonie w zakresie dat."""
+    data = await _get("/fixtures", {
+        "league": league_id,
+        "season": season,
+        "from": from_date,
+        "to": to_date,
+        "timezone": "Europe/Warsaw",
+    })
+    return data.get("response", [])
+
+
 async def fetch_fixtures_by_ids(fixture_ids: list[int]) -> list[dict]:
     """Pobiera szczegoly konkretnych meczy (max 20 na raz)."""
     ids_str = "-".join(str(i) for i in fixture_ids[:20])
