@@ -8,8 +8,9 @@ import models.match
 import models.prediction
 import models.private_league
 import models.invite_code
+import models.settings
 
-from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin
+from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin, game_settings
 
 app = FastAPI(title="Typerek API", version="0.1.0")
 
@@ -29,6 +30,7 @@ app.include_router(leagues.router)
 app.include_router(cron.router)
 app.include_router(debug.router)
 app.include_router(admin.router)
+app.include_router(game_settings.router)
 
 try:
     Base.metadata.create_all(bind=engine)
@@ -39,3 +41,5 @@ except Exception as e:
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "0.1.0"}
+
+

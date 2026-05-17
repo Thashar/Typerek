@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { myPredictions, submitPrediction, deletePrediction } from '../api/predictions'
+import { getSettings } from '../api/settings'
 import { useAuth } from '../context/AuthContext'
 
 const STATUS_LABELS = { scheduled: 'Oczekuje', live: 'LIVE', finished: 'Zakończony', postponed: 'Przełożony', cancelled: 'Odwołany' }
@@ -104,6 +105,7 @@ export default function Profile() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { data: preds } = useQuery({ queryKey: ['predictions'], queryFn: myPredictions })
+  const { data: settings } = useQuery({ queryKey: ['game-settings'], queryFn: getSettings })
 
   const predictions = preds ?? []
   const scored = predictions.filter(p => p.points != null)
@@ -132,12 +134,19 @@ export default function Profile() {
           </div>
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-yellow-400">{exactHits}</p>
-            <p className="text-xs text-gray-400 mt-1">Dokładne ⭐</p>
+            <p className="text-xs text-gray-400 mt-1">Dokładne ⭐ <span className="text-yellow-500">+{settings?.points_exact ?? 5}</span></p>
           </div>
           <div className="bg-gray-800 rounded-xl p-3 text-center">
             <p className="text-2xl font-bold text-green-400">{outcomeHits}</p>
-            <p className="text-xs text-gray-400 mt-1">Wyniki ✓</p>
+            <p className="text-xs text-gray-400 mt-1">Wyniki ✓ <span className="text-green-500">+{settings?.points_outcome ?? 2}</span></p>
           </div>
+        </div>
+        <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs text-gray-400 leading-relaxed">
+          ⭐ <span className="text-white">Dokładny typ</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{settings?.points_exact ?? 5} pkt</span>
+          &nbsp;·&nbsp;
+          ✓ <span className="text-white">Dobry wynik</span> (1/X/2) = <span className="text-green-400 font-bold">{settings?.points_outcome ?? 2} pkt</span>
+          <br />
+          W fazie pucharowej liczy się wynik po 90 min — bez dogrywki i karnych.
         </div>
       </div>
 

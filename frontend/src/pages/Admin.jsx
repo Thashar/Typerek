@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
+import { getSettings, updateSettings } from '../api/settings'
 
 function StatCard({ label, value }) {
   return (
@@ -27,6 +28,7 @@ export default function Admin() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [syncMsg, setSyncMsg] = useState(null)
+  const [settingsMsg, setSettingsMsg] = useState(null)
 
   const { data: inviteCodes, refetch: refetchCodes } = useQuery({
     queryKey: ['invite-codes'],
@@ -46,6 +48,25 @@ export default function Admin() {
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/admin/stats').then(r => r.data),
+  })
+
+  const { data: gameSettings } = useQuery({
+    queryKey: ['game-settings'],
+    queryFn: getSettings,
+  })
+  const [pointsExact, setPointsExact] = useState('')
+  const [pointsOutcome, setPointsOutcome] = useState('')
+
+  const saveSettings = useMutation({
+    mutationFn: () => updateSettings({
+      points_exact: parseInt(pointsExact),
+      points_outcome: parseInt(pointsOutcome),
+    }),
+    onSuccess: (data) => {
+      setSettingsMsg(`✓ Zapisano: dokładny=${data.points_exact} pkt, wynik=${data.points_outcome} pkt`)
+      queryClient.invalidateQueries({ queryKey: ['game-settings'] })
+    },
+    onError: () => setSettingsMsg('✗ Błąd zapisu'),
   })
 
   const { data: users } = useQuery({
@@ -92,6 +113,39 @@ export default function Admin() {
           {syncAll.isPending ? '⏳ Synchronizuję...' : '🔄 Synchronizuj wszystkie dane'}
         </button>
         {syncMsg && <p className="text-sm text-green-400">{syncMsg}</p>}
+      </div>
+
+      <div className="bg-gray-800 rounded-xl p-4 space-y-3">
+        <h2 className="font-semibold text-white">Punktacja</h2>
+        <p className="text-xs text-gray-400">Aktualne: dokładny wynik = <span className="text-brand-400 font-bold">{gameSettings?.points_exact ?? 5} pkt</span>, dobry wynik = <span className="text-brand-400 font-bold">{gameSettings?.points_outcome ?? 2} pkt</span></p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Za dokładny typ</label>
+            <input
+              type="number" min="1" max="100"
+              value={pointsExact || gameSettings?.points_exact || 5}
+              onChange={e => setPointsExact(e.target.value)}
+              className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Za dobry wynik</label>
+            <input
+              type="number" min="0" max="100"
+              value={pointsOutcome || gameSettings?.points_outcome || 2}
+              onChange={e => setPointsOutcome(e.target.value)}
+              className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <button
+            onClick={() => { setSettingsMsg(null); saveSettings.mutate() }}
+            disabled={saveSettings.isPending || (!pointsExact && !pointsOutcome)}
+            className="mt-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-lg transition text-sm"
+          >
+            {saveSettings.isPending ? 'Zapisuję...' : 'Zapisz'}
+          </button>
+        </div>
+        {settingsMsg && <p className="text-sm text-green-400">{settingsMsg}</p>}
       </div>
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">

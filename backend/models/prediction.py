@@ -31,10 +31,10 @@ class Prediction(Base):
             return "2"
         return "X"
 
-    def calculate_points(self, home_score: int, away_score: int) -> int:
+    def calculate_points(self, home_score: int, away_score: int, points_exact: int = POINTS_EXACT, points_outcome: int = POINTS_OUTCOME) -> int:
         if self.predicted_home == home_score and self.predicted_away == away_score:
-            return POINTS_EXACT
+            return points_exact
         actual_outcome = "1" if home_score > away_score else ("2" if home_score < away_score else "X")
         if self.predicted_outcome == actual_outcome:
-            return POINTS_OUTCOME
+            return points_outcome
         return 0
