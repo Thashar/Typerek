@@ -85,9 +85,6 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
-          {match.status === 'live' && (
-            <div className="text-xs text-gray-500 mb-0.5">{timeStr}</div>
-          )}
           {match.status === 'live' && match.minute != null && (
             <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{match.minute}'</div>
           )}
