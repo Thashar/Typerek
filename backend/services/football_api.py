@@ -41,7 +41,7 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
         "fixture": {
             "id": m["id"],
             "timestamp": ts,
-            "status": {"short": _status_short(m.get("status", ""))},
+            "status": {"short": _status_short(m.get("status", "")), "elapsed": m.get("minute")},
         },
         "league": {
             "id": comp.get("id", 0),
