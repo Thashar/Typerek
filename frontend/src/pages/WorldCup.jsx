@@ -6,17 +6,10 @@ import api from '../api/client'
 import { myPredictions } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 
-const STATUS_LABEL = {
-  SCHEDULED: '',
-  LIVE: '🔴 LIVE',
-  FINISHED: '',
-  POSTPONED: 'Odłożony',
-}
-
 function MatchRow({ m, prediction }) {
   const kickoff = new Date(m.kickoff + 'Z')
-  const isFinished = m.status === 'FINISHED'
-  const isLive = m.status === 'LIVE'
+  const isFinished = m.status === 'finished'
+  const isLive = m.status === 'live'
 
   return (
     <div className={`py-3 px-3 ${isLive ? 'bg-red-900/20' : ''}`}>
