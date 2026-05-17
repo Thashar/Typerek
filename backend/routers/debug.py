@@ -43,7 +43,18 @@ async def debug_apicheck():
 async def debug_sync(db: Session = Depends(get_db)):
     try:
         from services import sync
-        saved = await sync.sync_bulk_to_end_of_year(db)
-        return {"status": "ok", "synced": saved}
+        from services import football_api
+        from datetime import date
+
+        from_date = date.today().isoformat()
+        to_date = f"{date.today().year}-12-31"
+
+        results = {}
+        for league_id, season in sync.BULK_LEAGUES:
+            fixtures = await football_api.fetch_fixtures_by_league_season(league_id, season, from_date, to_date)
+            results[f"league_{league_id}_s{season}"] = len(fixtures)
+
+        total = await sync.sync_bulk_to_end_of_year(db)
+        return {"status": "ok", "synced": total, "per_league": results}
     except Exception as e:
         return {"status": "error", "detail": str(e), "trace": traceback.format_exc()}
