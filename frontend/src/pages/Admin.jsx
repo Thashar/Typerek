@@ -188,10 +188,10 @@ const syncAll = useMutation({
 
       <div className="bg-gray-800 rounded-xl p-4 space-y-3">
         <h2 className="font-semibold text-white">Punktacja</h2>
-        <p className="text-xs text-gray-400">Aktualne: dokładny wynik = <span className="text-brand-400 font-bold">{gameSettings?.points_exact ?? 3} pkt</span>, dobry wynik = <span className="text-brand-400 font-bold">{gameSettings?.points_outcome ?? 1} pkt</span></p>
+        <p className="text-xs text-gray-400">Aktualne: dokładny wynik ⭐ = <span className="text-brand-400 font-bold">{gameSettings?.points_exact ?? 3} pkt</span>, dobry typ ✅ = <span className="text-brand-400 font-bold">{gameSettings?.points_outcome ?? 1} pkt</span></p>
         <div className="flex items-center gap-3 flex-wrap">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Za dokładny typ</label>
+            <label className="block text-xs text-gray-400 mb-1">Za dokładny wynik ⭐</label>
             <input
               type="number" min="1" max="100"
               value={pointsExact || gameSettings?.points_exact || 3}
@@ -200,7 +200,7 @@ const syncAll = useMutation({
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Za dobry wynik</label>
+            <label className="block text-xs text-gray-400 mb-1">Za dobry typ ✅</label>
             <input
               type="number" min="0" max="100"
               value={pointsOutcome || gameSettings?.points_outcome || 1}
