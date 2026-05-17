@@ -53,6 +53,7 @@ function UserRow({ u, currentUserId, onChanged }) {
           ? <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">zweryfikowany</span>
           : <span className="ml-1 text-xs bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">niezweryfikowany</span>
         }
+        {!u.is_verified && <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">mail niepotwierdzony</span>}
         <div className="text-xs text-gray-500 mt-0.5 truncate">{u.email}</div>
       </div>
       <div className="text-right shrink-0">
