@@ -27,7 +27,7 @@ def login_user(db: Session, username: str, password: str) -> dict:
         raise HTTPException(status_code=401, detail="Nieprawidłowa nazwa użytkownika lub hasło")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Konto jest zablokowane")
-    if not user.is_verified:
+    if user.is_verified is False:
         raise HTTPException(status_code=403, detail="Potwierdź adres e-mail przed zalogowaniem")
 
     payload = {"sub": str(user.id)}
