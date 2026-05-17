@@ -5,30 +5,23 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { submitPrediction } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 
-function LiveMinute({ kickoff, statusShort }) {
+function LiveMinute({ kickoff }) {
   const calc = () => {
-    const total = Math.floor((Date.now() - kickoff.getTime()) / 60000)
-    if (statusShort === '2H') return Math.min(90, Math.max(46, total - 15))
-    if (statusShort === 'ET') return Math.min(120, Math.max(91, total - 30))
-    if (statusShort === '1H') return Math.min(45, Math.max(1, total))
-    // status_short nieznany — heurystyka na podstawie czasu
-    if (total <= 45) return Math.max(1, total)
-    if (total <= 60) return 45
-    return Math.min(90, total - 15)
+    const elapsed = (Date.now() - kickoff.getTime()) / 60000
+    if (elapsed <= 0)  return { min: 1,                        ht: false }
+    if (elapsed <= 45) return { min: Math.floor(elapsed),      ht: false }
+    if (elapsed <= 60) return { min: 45,                       ht: true  }
+    return             { min: Math.floor(elapsed - 15),        ht: false }
   }
-  const [minute, setMinute] = useState(calc)
+  const [state, setState] = useState(calc)
   useEffect(() => {
-    if (statusShort === 'HT' || statusShort === 'BT' || statusShort === 'P') return
-    const id = setInterval(() => setMinute(calc()), 1000)
+    const id = setInterval(() => setState(calc()), 1000)
     return () => clearInterval(id)
-  }, [statusShort])
+  }, [])
 
-  if (statusShort === 'HT' || statusShort === 'BT')
+  if (state.ht)
     return <div className="text-xs text-yellow-400 font-semibold mb-0.5">Przerwa</div>
-  if (statusShort === 'P')
-    return <div className="text-xs text-orange-400 font-semibold mb-0.5">Rzuty karne</div>
-
-  return <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{minute}'</div>
+  return <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5">{state.min}'</div>
 }
 
 const STATUS_LABELS = {
@@ -111,7 +104,7 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
-          {match.status === 'live' && <LiveMinute kickoff={kickoff} statusShort={match.status_short} />}
+          {match.status === 'live' && <LiveMinute kickoff={kickoff} />}
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (
