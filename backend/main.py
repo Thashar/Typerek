@@ -8,7 +8,7 @@ import models.match
 import models.prediction
 import models.private_league
 
-from routers import auth, matches, cron, predictions, ranking, leagues, debug
+from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin
 
 app = FastAPI(title="Typerek API", version="0.1.0")
 
@@ -27,6 +27,7 @@ app.include_router(ranking.router)
 app.include_router(leagues.router)
 app.include_router(cron.router)
 app.include_router(debug.router)
+app.include_router(admin.router)
 
 try:
     Base.metadata.create_all(bind=engine)

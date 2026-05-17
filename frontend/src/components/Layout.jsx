@@ -1,7 +1,7 @@
 import { NavLink, Outlet, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const nav = [
+const baseNav = [
   { to: '/', label: '⚽ Mecze' },
   { to: '/ranking', label: '🏆 Ranking' },
   { to: '/leagues', label: '🛡️ Ligi' },
@@ -10,6 +10,7 @@ const nav = [
 
 export default function Layout() {
   const { user, loading } = useAuth()
+  const nav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-500">Ładowanie...</div>

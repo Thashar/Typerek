@@ -7,6 +7,7 @@ import Matches from './pages/Matches'
 import Ranking from './pages/Ranking'
 import Leagues from './pages/Leagues'
 import Profile from './pages/Profile'
+import Admin from './pages/Admin'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/ranking" element={<Ranking />} />
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
