@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Matches from './pages/Matches'
+import WorldCup from './pages/WorldCup'
 import Ranking from './pages/Ranking'
 import Profile from './pages/Profile'
 import Admin from './pages/Admin'
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Matches />} />
+          <Route path="/worldcup" element={<WorldCup />} />
           <Route path="/ranking" element={<Ranking />} />
 <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />

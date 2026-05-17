@@ -9,20 +9,73 @@ from schemas.match import MatchResponse, MatchListResponse
 router = APIRouter(prefix="/api/matches", tags=["matches"])
 
 
+@router.get("/leagues")
+def get_match_leagues(db: Session = Depends(get_db)):
+    from models.league import League
+    today = date.today()
+    leagues = (
+        db.query(League)
+        .join(Match, Match.league_id == League.id)
+        .filter(Match.kickoff >= today)
+        .distinct()
+        .order_by(League.name)
+        .all()
+    )
+    return [{"id": l.id, "name": l.name, "country": l.country, "logo_url": l.logo_url} for l in leagues]
+
+
 @router.get("/dates")
 def get_match_dates(
     from_date: date = Query(default_factory=date.today),
     to_date: date = Query(default_factory=lambda: date.today() + timedelta(days=180)),
+    league_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    results = (
+    q = (
         db.query(func.date(Match.kickoff))
         .filter(Match.kickoff >= from_date, Match.kickoff <= to_date + timedelta(days=1))
-        .distinct()
-        .order_by(func.date(Match.kickoff))
+    )
+    if league_id:
+        q = q.filter(Match.league_id == league_id)
+    results = q.distinct().order_by(func.date(Match.kickoff)).all()
+    return [str(r[0]) for r in results if r[0]]
+
+
+@router.get("/worldcup")
+def get_worldcup_matches(db: Session = Depends(get_db)):
+    from models.league import League
+    wc_league = db.query(League).filter(League.api_id == 2000).first()
+    if not wc_league:
+        return {"groups": {}, "knockout": {}}
+    matches = (
+        db.query(Match)
+        .filter(Match.league_id == wc_league.id)
+        .order_by(Match.kickoff)
         .all()
     )
-    return [str(r[0]) for r in results if r[0]]
+    groups = {}
+    knockout = {}
+    for m in matches:
+        if m.stage == "GROUP_STAGE":
+            g = m.match_group or "?"
+            groups.setdefault(g, []).append(m)
+        else:
+            s = m.stage or "OTHER"
+            knockout.setdefault(s, []).append(m)
+
+    def fmt(m):
+        return {
+            "id": m.id, "home_team": m.home_team, "away_team": m.away_team,
+            "home_team_logo": m.home_team_logo, "away_team_logo": m.away_team_logo,
+            "kickoff": m.kickoff.isoformat(), "status": m.status,
+            "home_score": m.home_score, "away_score": m.away_score,
+            "stage": m.stage, "match_group": m.match_group,
+        }
+
+    return {
+        "groups": {k: [fmt(m) for m in v] for k, v in sorted(groups.items())},
+        "knockout": {k: [fmt(m) for m in v] for k, v in knockout.items()},
+    }
 
 
 @router.get("", response_model=MatchListResponse)
