@@ -1,4 +1,5 @@
-from sqlalchemy import Integer
+from datetime import datetime
+from sqlalchemy import Integer, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, Session
 from core.database import Base
 
@@ -9,6 +10,7 @@ class GameSettings(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     points_exact: Mapped[int] = mapped_column(Integer, default=5)
     points_outcome: Mapped[int] = mapped_column(Integer, default=2)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     @classmethod
     def get(cls, db: Session) -> "GameSettings":

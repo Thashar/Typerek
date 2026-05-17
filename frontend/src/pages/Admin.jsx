@@ -178,6 +178,11 @@ const syncAll = useMutation({
         >
           {syncAll.isPending ? '⏳ Synchronizuję...' : '🔄 Synchronizuj wszystkie dane'}
         </button>
+        {gameSettings?.last_synced_at && (
+          <p className="text-xs text-gray-500">
+            Ostatnia synchronizacja: {new Date(gameSettings.last_synced_at + 'Z').toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}
+          </p>
+        )}
         {syncMsg && <p className="text-sm text-green-400">{syncMsg}</p>}
       </div>
 

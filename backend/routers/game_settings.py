@@ -17,7 +17,11 @@ class SettingsUpdate(BaseModel):
 @router.get("")
 def get_settings(db: Session = Depends(get_db)):
     s = GameSettings.get(db)
-    return {"points_exact": s.points_exact, "points_outcome": s.points_outcome}
+    return {
+        "points_exact": s.points_exact,
+        "points_outcome": s.points_outcome,
+        "last_synced_at": s.last_synced_at.isoformat() if s.last_synced_at else None,
+    }
 
 
 @router.put("")

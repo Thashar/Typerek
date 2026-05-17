@@ -113,7 +113,8 @@ async def admin_sync_all(
     _: User = Depends(get_admin_user),
 ):
     from services import sync, football_api
-    from datetime import date
+    from datetime import date, datetime
+    from models.settings import GameSettings
 
     from_date = date.today().isoformat()
     to_date = f"{date.today().year}-12-31"
@@ -126,6 +127,8 @@ async def admin_sync_all(
             results[code] = saved
         except Exception:
             results[code] = 0
+    gs = GameSettings.get(db)
+    gs.last_synced_at = datetime.utcnow()
     db.commit()
     return {"results": results, "total": sum(results.values())}
 
