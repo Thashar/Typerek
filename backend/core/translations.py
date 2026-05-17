@@ -133,5 +133,22 @@ TEAM_TRANSLATIONS: dict[str, str] = {
 }
 
 
+COUNTRY_TRANSLATIONS: dict[str, str] = {
+    **TEAM_TRANSLATIONS,
+    "World": "Świat",
+    "Europe": "Europa",
+    "Africa": "Afryka",
+    "Asia": "Azja",
+    "South America": "Ameryka Południowa",
+    "North America": "Ameryka Północna",
+    "Oceania": "Oceania",
+    "International": "Międzynarodowe",
+}
+
+
 def translate_team(name: str) -> str:
     return TEAM_TRANSLATIONS.get(name, name)
+
+
+def translate_country(name: str) -> str:
+    return COUNTRY_TRANSLATIONS.get(name, name)

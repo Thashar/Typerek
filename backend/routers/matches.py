@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
-from core.translations import translate_team
+from core.translations import translate_team, translate_country
 from models.match import Match, MatchStatus
 from schemas.match import MatchResponse, MatchListResponse
 
@@ -22,7 +22,7 @@ def get_match_leagues(db: Session = Depends(get_db)):
         .order_by(League.name)
         .all()
     )
-    return [{"id": l.id, "name": l.name, "country": l.country, "logo_url": l.logo_url} for l in leagues]
+    return [{"id": l.id, "name": l.name, "country": translate_country(l.country), "logo_url": l.logo_url} for l in leagues]
 
 
 @router.get("/dates")

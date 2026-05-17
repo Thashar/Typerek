@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, field_validator
 from models.match import MatchStatus
-from core.translations import translate_team
+from core.translations import translate_team, translate_country
 
 
 class LeagueInfo(BaseModel):
@@ -11,6 +11,11 @@ class LeagueInfo(BaseModel):
     logo_url: str | None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("country", mode="before")
+    @classmethod
+    def translate_c(cls, v: str) -> str:
+        return translate_country(v)
 
 
 class MatchResponse(BaseModel):
