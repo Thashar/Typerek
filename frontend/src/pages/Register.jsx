@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
-  const { register } = useAuth()
+  const { register, user } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', email: '', password: '', invite_code: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [user])
 
   const handle = async (e) => {
     e.preventDefault()
@@ -15,7 +19,6 @@ export default function Register() {
     setLoading(true)
     try {
       await register(form.username, form.email, form.password, form.invite_code)
-      navigate('/')
     } catch (err) {
       setError(err.response?.data?.detail || 'Błąd rejestracji')
     } finally {
