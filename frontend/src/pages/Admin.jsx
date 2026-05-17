@@ -130,6 +130,16 @@ export default function Admin() {
     queryFn: () => api.get('/admin/users').then(r => r.data),
   })
 
+  const verifyAll = useMutation({
+    mutationFn: () => api.post('/admin/verify-all-users').then(r => r.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['ranking'] })
+      setSyncMsg(`✓ Zweryfikowano ${data.verified} użytkowników`)
+    },
+    onError: () => setSyncMsg('✗ Błąd weryfikacji'),
+  })
+
   const syncAll = useMutation({
     mutationFn: () => api.post('/admin/sync-all').then(r => r.data),
     onSuccess: (data) => {
@@ -250,8 +260,15 @@ export default function Admin() {
       </div>
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700">
+        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
           <h2 className="font-semibold text-white">Użytkownicy ({users?.length ?? 0})</h2>
+          <button
+            onClick={() => { setSyncMsg(null); verifyAll.mutate() }}
+            disabled={verifyAll.isPending}
+            className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            {verifyAll.isPending ? '...' : 'Zweryfikuj wszystkich'}
+          </button>
         </div>
         <div className="divide-y divide-gray-700">
           {users?.map(u => (

@@ -125,6 +125,16 @@ def delete_user(
     db.commit()
 
 
+@router.post("/verify-all-users")
+def verify_all_users(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    count = db.query(User).filter(User.is_ranked == False).update({"is_ranked": True})
+    db.commit()
+    return {"verified": count}
+
+
 @router.post("/sync-all")
 async def admin_sync_all(
     db: Session = Depends(get_db),
