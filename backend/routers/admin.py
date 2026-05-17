@@ -48,60 +48,6 @@ def admin_users(
     ]
 
 
-@router.get("/invite-codes")
-def list_invite_codes(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_admin_user),
-):
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    codes = (
-        db.query(InviteCode)
-        .filter(
-            (InviteCode.used_by_id.is_(None)) |
-            (InviteCode.expires_at > now)
-        )
-        .order_by(InviteCode.created_at.desc())
-        .limit(50)
-        .all()
-    )
-    return [
-        {
-            "id": c.id,
-            "code": c.code,
-            "expires_at": c.expires_at.isoformat(),
-            "is_used": c.used_by_id is not None,
-            "is_expired": now > c.expires_at,
-            "used_by_id": c.used_by_id,
-        }
-        for c in codes
-    ]
-
-
-@router.post("/invite-codes")
-def generate_invite_code(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_admin_user),
-):
-    code = InviteCode.generate(db)
-    db.add(code)
-    db.commit()
-    db.refresh(code)
-    return {"code": code.code, "expires_at": code.expires_at.isoformat()}
-
-
-@router.delete("/invite-codes/{code_str}")
-def delete_invite_code(
-    code_str: str,
-    db: Session = Depends(get_db),
-    _: User = Depends(get_admin_user),
-):
-    code = db.query(InviteCode).filter(InviteCode.code == code_str.upper()).first()
-    if code:
-        db.delete(code)
-        db.commit()
-    return {"deleted": True}
-
 
 @router.delete("/users/{user_id}", status_code=204)
 def delete_user(
@@ -123,6 +69,21 @@ def delete_user(
     )
     db.delete(target)
     db.commit()
+
+
+@router.post("/users/{user_id}/verify")
+def verify_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    from fastapi import HTTPException
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
+    target.is_ranked = True
+    db.commit()
+    return {"verified": True}
 
 
 @router.post("/verify-all-users")

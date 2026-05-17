@@ -42,28 +42,6 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     return user
 
 
-class UseInviteRequest(BaseModel):
-    code: str
-
-
-@router.post("/use-invite")
-def use_invite(body: UseInviteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from models.invite_code import InviteCode
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    if current_user.is_ranked:
-        raise HTTPException(status_code=400, detail="Konto jest już zweryfikowane kodem")
-
-    code = db.query(InviteCode).filter(InviteCode.code == body.code.upper()).first()
-    if not code or code.used_by_id is not None or now > code.expires_at:
-        raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły kod zaproszenia")
-
-    code.used_by_id = current_user.id
-    code.used_at = now
-    current_user.is_ranked = True
-    db.commit()
-    return {"detail": "Konto zostało zweryfikowane. Jesteś teraz widoczny w rankingu."}
-
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):

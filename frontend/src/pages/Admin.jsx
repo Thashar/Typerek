@@ -23,14 +23,22 @@ const COMPETITIONS = [
   { code: 'FL1', label: '🇫🇷 Ligue 1' },
 ]
 
-function UserRow({ u, currentUserId, onDeleted }) {
+function UserRow({ u, currentUserId, onChanged }) {
   const [confirm, setConfirm] = useState(false)
   const [err, setErr] = useState('')
+
   const deleteMut = useMutation({
     mutationFn: () => api.delete(`/admin/users/${u.id}`),
-    onSuccess: () => { setConfirm(false); onDeleted() },
+    onSuccess: () => { setConfirm(false); onChanged() },
     onError: (e) => setErr(e.response?.data?.detail || 'Błąd usuwania'),
   })
+
+  const verifyMut = useMutation({
+    mutationFn: () => api.post(`/admin/users/${u.id}/verify`),
+    onSuccess: () => onChanged(),
+    onError: (e) => setErr(e.response?.data?.detail || 'Błąd weryfikacji'),
+  })
+
   const canDelete = !u.is_admin && u.id !== currentUserId
 
   return (
@@ -48,10 +56,19 @@ function UserRow({ u, currentUserId, onDeleted }) {
         <div className="text-brand-400 font-bold text-sm">{u.total_points} pkt</div>
         <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
       </div>
-      {canDelete && (
-        <>
-          {confirm ? (
-            <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
+        {!u.is_ranked && (
+          <button
+            onClick={() => verifyMut.mutate()}
+            disabled={verifyMut.isPending}
+            className="text-xs bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-2 py-1 rounded transition"
+          >
+            {verifyMut.isPending ? '...' : 'Weryfikuj'}
+          </button>
+        )}
+        {canDelete && (
+          confirm ? (
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => deleteMut.mutate()}
                 disabled={deleteMut.isPending}
@@ -66,15 +83,15 @@ function UserRow({ u, currentUserId, onDeleted }) {
           ) : (
             <button
               onClick={() => { setErr(''); setConfirm(true) }}
-              className="text-gray-600 hover:text-red-400 transition text-lg leading-none shrink-0"
+              className="text-gray-600 hover:text-red-400 transition text-lg leading-none"
               title="Usuń użytkownika"
             >
               ×
             </button>
-          )}
-          {err && <span className="text-xs text-red-400">{err}</span>}
-        </>
-      )}
+          )
+        )}
+      </div>
+      {err && <span className="text-xs text-red-400 w-full">{err}</span>}
     </div>
   )
 }
@@ -86,22 +103,7 @@ export default function Admin() {
   const [syncMsg, setSyncMsg] = useState(null)
   const [settingsMsg, setSettingsMsg] = useState(null)
 
-  const { data: inviteCodes, refetch: refetchCodes } = useQuery({
-    queryKey: ['invite-codes'],
-    queryFn: () => api.get('/admin/invite-codes').then(r => r.data),
-  })
-
-  const generateCode = useMutation({
-    mutationFn: () => api.post('/admin/invite-codes').then(r => r.data),
-    onSuccess: () => refetchCodes(),
-  })
-
-  const deleteCode = useMutation({
-    mutationFn: (code) => api.delete(`/admin/invite-codes/${code}`).then(r => r.data),
-    onSuccess: () => refetchCodes(),
-  })
-
-  const { data: stats, refetch: refetchStats } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/admin/stats').then(r => r.data),
   })
@@ -155,6 +157,11 @@ export default function Admin() {
   if (!user?.is_admin) {
     navigate('/')
     return null
+  }
+
+  const refreshUsers = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    queryClient.invalidateQueries({ queryKey: ['ranking'] })
   }
 
   return (
@@ -216,51 +223,6 @@ export default function Admin() {
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="font-semibold text-white">Kody zaproszenia</h2>
-          <button
-            onClick={() => generateCode.mutate()}
-            disabled={generateCode.isPending}
-            className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-          >
-            {generateCode.isPending ? '...' : '+ Generuj kod'}
-          </button>
-        </div>
-        {generateCode.data && (
-          <div className="px-4 py-3 bg-green-900/30 border-b border-gray-700">
-            <span className="text-xs text-gray-400">Nowy kod: </span>
-            <span className="font-mono text-xl font-bold text-green-400 tracking-widest">{generateCode.data.code}</span>
-            <span className="text-xs text-gray-500 ml-2">ważny 24h</span>
-          </div>
-        )}
-        <div className="divide-y divide-gray-700">
-          {inviteCodes?.length === 0 && (
-            <p className="px-4 py-4 text-sm text-gray-500">Brak kodów</p>
-          )}
-          {inviteCodes?.map(c => (
-            <div key={c.id} className="px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`font-mono font-bold tracking-widest text-lg ${c.is_used ? 'text-gray-600 line-through' : c.is_expired ? 'text-red-500' : 'text-brand-400'}`}>
-                  {c.code}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {c.is_used ? '✓ użyty' : c.is_expired ? '✗ wygasł' : `ważny do ${c.expires_at.slice(11, 16)}`}
-                </span>
-              </div>
-              {!c.is_used && (
-                <button
-                  onClick={() => deleteCode.mutate(c.code)}
-                  className="text-xs text-red-500 hover:text-red-400 transition"
-                >
-                  Usuń
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-gray-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
           <h2 className="font-semibold text-white">Użytkownicy ({users?.length ?? 0})</h2>
           <button
             onClick={() => { setSyncMsg(null); verifyAll.mutate() }}
@@ -272,7 +234,7 @@ export default function Admin() {
         </div>
         <div className="divide-y divide-gray-700">
           {users?.map(u => (
-            <UserRow key={u.id} u={u} currentUserId={user?.id} onDeleted={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })} />
+            <UserRow key={u.id} u={u} currentUserId={user?.id} onChanged={refreshUsers} />
           ))}
         </div>
       </div>
