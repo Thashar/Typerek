@@ -7,9 +7,9 @@ export default function UpdateBanner() {
   return (
     <div
       onClick={() => window.location.reload()}
-      className="fixed top-0 left-0 right-0 z-50 bg-brand-600 text-white text-sm font-semibold text-center py-3 cursor-pointer hover:bg-brand-700 transition shadow-lg"
+      className="fixed top-3 right-3 z-50 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold px-3 py-2 rounded-xl cursor-pointer transition shadow-lg"
     >
-      Dostępna nowa wersja — kliknij, aby odświeżyć ↻
+      Nowa wersja — odśwież ↻
     </div>
   )
 }
