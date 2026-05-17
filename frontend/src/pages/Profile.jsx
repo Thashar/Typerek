@@ -45,9 +45,8 @@ function PredRow({ p, onSaved }) {
           >
             <span className="font-bold">{p.predicted_home}–{p.predicted_away}</span>
             {(p.match.status === 'finished' || isLive) && (
-              <span className={`block text-xs ${isLive ? 'text-red-400 font-semibold' : 'text-gray-500'}`}>
+              <span className={`block text-xs ${isLive ? 'text-red-500 font-semibold animate-pulse [filter:drop-shadow(0_0_6px_rgba(239,68,68,0.8))]' : 'text-gray-500'}`}>
                 {p.match.home_score}–{p.match.away_score}
-                {isLive && ' ●'}
               </span>
             )}
           </button>
@@ -57,7 +56,7 @@ function PredRow({ p, onSaved }) {
           {p.points != null ? (
             <span className={`font-bold ${p.points > 0 ? 'text-green-400' : 'text-gray-500'}`}>+{p.points} pkt</span>
           ) : (
-            <span className={`text-xs ${isLive ? 'text-red-400 font-semibold animate-pulse' : 'text-gray-500'}`}>{STATUS_LABELS[p.match.status]}</span>
+            <span className={`text-xs ${isLive ? 'text-red-500 font-bold animate-pulse [filter:drop-shadow(0_0_6px_rgba(239,68,68,0.8))]' : 'text-gray-500'}`}>{STATUS_LABELS[p.match.status]}</span>
           )}
         </div>
 
