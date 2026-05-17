@@ -10,11 +10,11 @@ function PredRow({ p, onSaved }) {
   const qc = useQueryClient()
   const isScheduled = p.match.status === 'scheduled'
   const [editing, setEditing] = useState(false)
-  const [home, setHome] = useState(p.predicted_home)
-  const [away, setAway] = useState(p.predicted_away)
+  const [home, setHome] = useState(String(p.predicted_home))
+  const [away, setAway] = useState(String(p.predicted_away))
 
   const saveMut = useMutation({
-    mutationFn: () => submitPrediction({ match_id: p.match_id, predicted_home: home, predicted_away: away }),
+    mutationFn: () => submitPrediction({ match_id: p.match_id, predicted_home: parseInt(home) || 0, predicted_away: parseInt(away) || 0 }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['predictions'] }); setEditing(false) },
   })
 
@@ -67,16 +67,18 @@ function PredRow({ p, onSaved }) {
       {editing && (
         <div className="flex items-center gap-2 pt-1 border-t border-gray-800">
           <input
-            type="number" min="0" max="20"
+            type="text" inputMode="numeric" pattern="[0-9]*"
             value={home}
-            onChange={e => setHome(Math.max(0, parseInt(e.target.value) || 0))}
+            onChange={e => setHome(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+            onBlur={() => { if (home === '') setHome('0') }}
             className="w-12 text-center bg-gray-700 rounded-lg py-1.5 font-bold text-lg outline-none focus:ring-2 focus:ring-brand-500"
           />
           <span className="text-gray-500">–</span>
           <input
-            type="number" min="0" max="20"
+            type="text" inputMode="numeric" pattern="[0-9]*"
             value={away}
-            onChange={e => setAway(Math.max(0, parseInt(e.target.value) || 0))}
+            onChange={e => setAway(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+            onBlur={() => { if (away === '') setAway('0') }}
             className="w-12 text-center bg-gray-700 rounded-lg py-1.5 font-bold text-lg outline-none focus:ring-2 focus:ring-brand-500"
           />
           <button

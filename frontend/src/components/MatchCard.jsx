@@ -20,13 +20,26 @@ const OUTCOME_COLORS = {
 }
 
 function ScoreInput({ value, onChange, disabled }) {
+  const [raw, setRaw] = useState(value === '' ? '' : String(value))
+
+  const handleChange = (e) => {
+    const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 2)
+    setRaw(v)
+    onChange(v === '' ? '' : Math.min(20, parseInt(v)))
+  }
+
+  const handleBlur = () => {
+    if (raw === '') { setRaw('0'); onChange(0) }
+  }
+
   return (
     <input
-      type="number"
-      min="0"
-      max="20"
-      value={value}
-      onChange={e => onChange(Math.max(0, parseInt(e.target.value) || 0))}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={raw}
+      onChange={handleChange}
+      onBlur={handleBlur}
       disabled={disabled}
       className="w-12 text-center bg-gray-700 rounded-lg py-1.5 font-bold text-lg outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50"
     />
