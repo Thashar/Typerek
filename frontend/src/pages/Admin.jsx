@@ -25,9 +25,11 @@ const COMPETITIONS = [
 
 function UserRow({ u, currentUserId, onDeleted }) {
   const [confirm, setConfirm] = useState(false)
+  const [err, setErr] = useState('')
   const deleteMut = useMutation({
     mutationFn: () => api.delete(`/admin/users/${u.id}`),
-    onSuccess: onDeleted,
+    onSuccess: () => { setConfirm(false); onDeleted() },
+    onError: (e) => setErr(e.response?.data?.detail || 'Błąd usuwania'),
   })
   const canDelete = !u.is_admin && u.id !== currentUserId
 
@@ -43,28 +45,31 @@ function UserRow({ u, currentUserId, onDeleted }) {
         <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
       </div>
       {canDelete && (
-        confirm ? (
-          <div className="flex items-center gap-1 shrink-0">
+        <>
+          {confirm ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => deleteMut.mutate()}
+                disabled={deleteMut.isPending}
+                className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition"
+              >
+                {deleteMut.isPending ? '...' : 'Tak'}
+              </button>
+              <button onClick={() => setConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition">
+                Nie
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={() => deleteMut.mutate()}
-              disabled={deleteMut.isPending}
-              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition"
+              onClick={() => { setErr(''); setConfirm(true) }}
+              className="text-gray-600 hover:text-red-400 transition text-lg leading-none shrink-0"
+              title="Usuń użytkownika"
             >
-              {deleteMut.isPending ? '...' : 'Tak'}
+              ×
             </button>
-            <button onClick={() => setConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition">
-              Nie
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirm(true)}
-            className="text-gray-600 hover:text-red-400 transition text-lg leading-none shrink-0"
-            title="Usuń użytkownika"
-          >
-            ×
-          </button>
-        )
+          )}
+          {err && <span className="text-xs text-red-400">{err}</span>}
+        </>
       )}
     </div>
   )

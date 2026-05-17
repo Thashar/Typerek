@@ -117,6 +117,9 @@ def delete_user(
     if target.is_admin:
         raise HTTPException(status_code=400, detail="Nie można usunąć administratora")
     db.query(Prediction).filter(Prediction.user_id == user_id).delete()
+    db.query(InviteCode).filter(InviteCode.used_by_id == user_id).update(
+        {"used_by_id": None, "used_at": None}
+    )
     db.delete(target)
     db.commit()
 
