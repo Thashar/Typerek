@@ -12,7 +12,9 @@ const STATUS_LABELS = { scheduled: 'Oczekuje', live: 'LIVE', finished: 'Zakończ
 function PredRow({ p, onSaved }) {
   const qc = useQueryClient()
   const isScheduled = p.match.status === 'scheduled'
+  const isLive = p.match.status === 'live'
   const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [home, setHome] = useState(String(p.predicted_home))
   const [away, setAway] = useState(String(p.predicted_away))
 
@@ -42,8 +44,11 @@ function PredRow({ p, onSaved }) {
             title={isScheduled ? 'Kliknij, aby zmienić typ' : undefined}
           >
             <span className="font-bold">{p.predicted_home}–{p.predicted_away}</span>
-            {p.match.status === 'finished' && (
-              <span className="block text-xs text-gray-500">{p.match.home_score}–{p.match.away_score}</span>
+            {(p.match.status === 'finished' || isLive) && (
+              <span className={`block text-xs ${isLive ? 'text-red-400 font-semibold' : 'text-gray-500'}`}>
+                {p.match.home_score}–{p.match.away_score}
+                {isLive && ' ●'}
+              </span>
             )}
           </button>
         )}
@@ -52,19 +57,36 @@ function PredRow({ p, onSaved }) {
           {p.points != null ? (
             <span className={`font-bold ${p.points > 0 ? 'text-green-400' : 'text-gray-500'}`}>+{p.points} pkt</span>
           ) : (
-            <span className="text-xs text-gray-500">{STATUS_LABELS[p.match.status]}</span>
+            <span className={`text-xs ${isLive ? 'text-red-400 font-semibold animate-pulse' : 'text-gray-500'}`}>{STATUS_LABELS[p.match.status]}</span>
           )}
         </div>
 
         {isScheduled && !editing && (
-          <button
-            onClick={() => delMut.mutate()}
-            disabled={delMut.isPending}
-            className="text-gray-600 hover:text-red-400 transition text-lg leading-none disabled:opacity-40"
-            title="Usuń typ"
-          >
-            ×
-          </button>
+          confirmDelete ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => delMut.mutate()}
+                disabled={delMut.isPending}
+                className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition"
+              >
+                {delMut.isPending ? '...' : 'Tak'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition"
+              >
+                Nie
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-gray-600 hover:text-red-400 transition text-lg leading-none shrink-0"
+              title="Usuń typ"
+            >
+              ×
+            </button>
+          )
         )}
       </div>
 
