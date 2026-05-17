@@ -60,6 +60,9 @@ export default function Login() {
             {loading ? 'Logowanie...' : 'Zaloguj się'}
           </button>
           <p className="text-center text-gray-400 text-sm">
+            <Link to="/forgot-password" className="text-gray-500 hover:text-gray-300">Zapomniałem hasła</Link>
+          </p>
+          <p className="text-center text-gray-400 text-sm">
             Nie masz konta?{' '}
             <Link to="/register" className="text-brand-500 hover:underline">Zarejestruj się</Link>
           </p>

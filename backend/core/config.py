@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     FOOTBALL_DATA_API_KEY: str = ""
     CRON_SECRET: str = ""
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    FRONTEND_URL: str = "https://typerek.vercel.app"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
