@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -118,6 +118,13 @@ export default function Admin() {
   const [pointsExact, setPointsExact] = useState('')
   const [pointsOutcome, setPointsOutcome] = useState('')
 
+  useEffect(() => {
+    if (gameSettings) {
+      setPointsExact(String(gameSettings.points_exact))
+      setPointsOutcome(String(gameSettings.points_outcome))
+    }
+  }, [gameSettings])
+
   const saveSettings = useMutation({
     mutationFn: () => updateSettings({
       points_exact: parseInt(pointsExact),
@@ -194,7 +201,7 @@ const syncAll = useMutation({
             <label className="block text-xs text-gray-400 mb-1">Za dokładny wynik ⭐</label>
             <input
               type="number" min="1" max="100"
-              value={pointsExact || gameSettings?.points_exact || 3}
+              value={pointsExact}
               onChange={e => setPointsExact(e.target.value)}
               className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
             />
@@ -203,14 +210,14 @@ const syncAll = useMutation({
             <label className="block text-xs text-gray-400 mb-1">Za dobry typ ✅</label>
             <input
               type="number" min="0" max="100"
-              value={pointsOutcome || gameSettings?.points_outcome || 1}
+              value={pointsOutcome}
               onChange={e => setPointsOutcome(e.target.value)}
               className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <button
             onClick={() => { setSettingsMsg(null); saveSettings.mutate() }}
-            disabled={saveSettings.isPending || (!pointsExact && !pointsOutcome)}
+            disabled={saveSettings.isPending || !pointsExact || !pointsOutcome}
             className="mt-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-lg transition text-sm"
           >
             {saveSettings.isPending ? 'Zapisuję...' : 'Zapisz'}
