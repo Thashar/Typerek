@@ -20,7 +20,7 @@ def get_global_ranking(db: Session) -> list[dict]:
             ).label("outcome_hits"),
         )
         .outerjoin(Prediction, Prediction.user_id == User.id)
-        .filter(User.is_active == True, User.is_ranked == True)
+        .filter(User.is_active.is_(True), User.is_ranked.is_(True))
         .group_by(User.id, User.username)
         .order_by(func.coalesce(func.sum(Prediction.points), 0).desc())
         .all()
