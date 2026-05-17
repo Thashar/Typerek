@@ -5,9 +5,13 @@ from core.config import settings
 _BASE_URL = "https://api.football-data.org/v4"
 
 COMPETITIONS = {
-    "WC": {"id": 2000, "name": "FIFA World Cup", "country": "World", "season": 2026},
-    "NL": {"id": 2019, "name": "UEFA Nations League", "country": "Europe", "season": 2024},
-    "EC": {"id": 2018, "name": "UEFA Euro", "country": "Europe", "season": 2024},
+    "WC":  {"id": 2000, "name": "FIFA World Cup", "country": "World", "season": 2026},
+    "CL":  {"id": 2001, "name": "UEFA Champions League", "country": "Europe", "season": 2024},
+    "PL":  {"id": 2021, "name": "Premier League", "country": "England", "season": 2024},
+    "BL1": {"id": 2002, "name": "Bundesliga", "country": "Germany", "season": 2024},
+    "SA":  {"id": 2019, "name": "Serie A", "country": "Italy", "season": 2024},
+    "PD":  {"id": 2014, "name": "La Liga", "country": "Spain", "season": 2024},
+    "FL1": {"id": 2015, "name": "Ligue 1", "country": "France", "season": 2024},
 }
 
 

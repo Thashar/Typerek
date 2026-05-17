@@ -23,7 +23,7 @@ def _parse_status(short: str) -> MatchStatus:
 
 
 # Kody turniejow z football-data.org
-COMPETITION_CODES = ["WC", "NL", "EC"]
+COMPETITION_CODES = ["WC"]
 
 
 async def sync_bulk_to_end_of_year(db: Session) -> int:
