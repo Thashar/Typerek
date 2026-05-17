@@ -29,13 +29,20 @@ export function AuthProvider({ children }) {
     await apiRegister({ username, email, password })
   }
 
+  const refreshUser = async () => {
+    try {
+      const userData = await me()
+      setUser(userData)
+    } catch {}
+  }
+
   const logout = () => {
     localStorage.clear()
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

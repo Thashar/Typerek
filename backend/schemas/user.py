@@ -47,6 +47,7 @@ class UserResponse(BaseModel):
     is_admin: bool
     is_verified: bool | None
     is_ranked: bool
+    avatar: str | None = None
     total_points: int
 
     model_config = {"from_attributes": True}

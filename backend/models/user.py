@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime
+from sqlalchemy import String, Boolean, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
@@ -15,6 +15,7 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False, server_default="true")
     is_ranked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    avatar: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     predictions: Mapped[list["Prediction"]] = relationship("Prediction", back_populates="user")

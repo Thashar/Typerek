@@ -8,7 +8,7 @@ from models.prediction import Prediction, POINTS_EXACT, POINTS_OUTCOME
 
 def get_global_ranking(db: Session) -> list[dict]:
     rows = db.execute(text("""
-        SELECT u.id AS user_id, u.username,
+        SELECT u.id AS user_id, u.username, u.avatar,
                COALESCE(SUM(p.points), 0) AS total_points,
                COUNT(p.id) AS predictions_count,
                SUM(CASE WHEN p.points = :exact THEN 1 ELSE 0 END) AS exact_hits,
@@ -16,7 +16,7 @@ def get_global_ranking(db: Session) -> list[dict]:
         FROM users u
         LEFT JOIN predictions p ON p.user_id = u.id
         WHERE u.is_active = TRUE AND u.is_ranked = TRUE
-        GROUP BY u.id, u.username
+        GROUP BY u.id, u.username, u.avatar
         ORDER BY total_points DESC
     """), {"exact": POINTS_EXACT, "outcome": POINTS_OUTCOME}).fetchall()
 
@@ -25,6 +25,7 @@ def get_global_ranking(db: Session) -> list[dict]:
             "rank": idx + 1,
             "user_id": r.user_id,
             "username": r.username,
+            "avatar": r.avatar,
             "total_points": int(r.total_points),
             "predictions_count": int(r.predictions_count),
             "exact_hits": int(r.exact_hits or 0),

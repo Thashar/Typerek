@@ -74,15 +74,23 @@ export default function Ranking() {
                   {MEDAL[entry.rank - 1] ?? `#${entry.rank}`}
                 </span>
 
-                <div className="flex-1 min-w-0">
-                  <span className={`font-semibold ${isMe ? 'text-brand-400' : ''}`}>
-                    {entry.username} {isMe && <span className="text-xs text-gray-400">(Ty)</span>}
-                  </span>
-                  {hasLive && (movingUp || movingDown) && (
-                    <span className={`ml-2 text-xs font-bold ${movingUp ? 'text-green-400' : 'text-red-400'}`}>
-                      {movingUp ? '▲' : '▼'}{Math.abs(live.rank_change)}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0 flex items-center justify-center">
+                    {entry.avatar
+                      ? <img src={entry.avatar} className="w-full h-full object-cover" alt="" />
+                      : <span className="text-xs font-bold text-gray-400">{entry.username.slice(0, 2).toUpperCase()}</span>
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <span className={`font-semibold ${isMe ? 'text-brand-400' : ''}`}>
+                      {entry.username} {isMe && <span className="text-xs text-gray-400">(Ty)</span>}
                     </span>
-                  )}
+                    {hasLive && (movingUp || movingDown) && (
+                      <span className={`ml-2 text-xs font-bold ${movingUp ? 'text-green-400' : 'text-red-400'}`}>
+                        {movingUp ? '▲' : '▼'}{Math.abs(live.rank_change)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="hidden sm:block text-right text-sm text-gray-400 shrink-0">

@@ -5,6 +5,7 @@ class RankingEntry(BaseModel):
     rank: int
     user_id: int
     username: str
+    avatar: str | None = None
     total_points: int
     predictions_count: int
     exact_hits: int

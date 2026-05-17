@@ -1,12 +1,93 @@
+import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { myPredictions } from '../api/predictions'
 import { getSettings } from '../api/settings'
 import { useAuth } from '../context/AuthContext'
 import { GroupedPredHistory } from '../components/PredHistory'
+import api from '../api/client'
+
+function resizeToBase64(file) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 80
+      canvas.height = 80
+      const ctx = canvas.getContext('2d')
+      const size = Math.min(img.width, img.height)
+      const sx = (img.width - size) / 2
+      const sy = (img.height - size) / 2
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 80, 80)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.src = url
+  })
+}
+
+function Avatar({ user, onUpdated }) {
+  const fileRef = useRef(null)
+  const [loading, setLoading] = useState(false)
+  const initials = (user?.username ?? '?').slice(0, 2).toUpperCase()
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setLoading(true)
+    try {
+      const base64 = await resizeToBase64(file)
+      await api.put('/users/me/avatar', { avatar: base64 })
+      onUpdated()
+    } finally {
+      setLoading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleDelete = async () => {
+    setLoading(true)
+    try {
+      await api.delete('/users/me/avatar')
+      onUpdated()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={loading}
+        className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center hover:opacity-80 transition"
+        title="Zmień awatar"
+      >
+        {user?.avatar
+          ? <img src={user.avatar} className="w-full h-full object-cover" alt="" />
+          : <span className="text-xl font-bold text-gray-400">{initials}</span>
+        }
+        {loading && (
+          <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center">
+            <span className="text-xs text-white">...</span>
+          </div>
+        )}
+      </button>
+      {user?.avatar && !loading && (
+        <button
+          onClick={handleDelete}
+          className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gray-600 hover:bg-red-600 rounded-full text-white text-xs flex items-center justify-center transition"
+          title="Usuń awatar"
+        >×</button>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  )
+}
 
 export default function Profile() {
-  const { user, logout } = useAuth()
+  const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const { data: preds } = useQuery({ queryKey: ['predictions'], queryFn: myPredictions })
   const { data: settings } = useQuery({ queryKey: ['game-settings'], queryFn: getSettings })
@@ -32,12 +113,15 @@ export default function Profile() {
           </div>
       }
       <div className="bg-gray-900 rounded-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">{user?.username}</h2>
-            <p className="text-gray-400 text-sm">{user?.email}</p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Avatar user={user} onUpdated={refreshUser} />
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold truncate">{user?.username}</h2>
+              <p className="text-gray-400 text-sm truncate">{user?.email}</p>
+            </div>
           </div>
-          <button onClick={handleLogout} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition">
+          <button onClick={handleLogout} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition shrink-0">
             Wyloguj
           </button>
         </div>
