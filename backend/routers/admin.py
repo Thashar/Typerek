@@ -91,9 +91,10 @@ def verify_all_users(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    count = db.query(User).filter(User.is_ranked == False).update({"is_ranked": True})
+    from sqlalchemy import text
+    result = db.execute(text("UPDATE users SET is_ranked = TRUE WHERE is_ranked IS NOT TRUE"))
     db.commit()
-    return {"verified": count}
+    return {"verified": result.rowcount}
 
 
 @router.post("/sync-all")
