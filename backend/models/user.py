@@ -14,6 +14,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False, server_default="true")
+    is_ranked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     predictions: Mapped[list["Prediction"]] = relationship("Prediction", back_populates="user")

@@ -26,6 +26,19 @@ class ResetPasswordRequest(BaseModel):
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
     user = register_user(db, body.username, body.email, body.password)
+
+    expire = datetime.now(timezone.utc) + timedelta(hours=24)
+    token = jwt.encode(
+        {"sub": user.email, "type": "email_verify", "exp": expire},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+    try:
+        from core.email import send_verification_email
+        send_verification_email(user.email, token)
+    except Exception:
+        pass
+
     return user
 
 
@@ -38,8 +51,8 @@ def use_invite(body: UseInviteRequest, db: Session = Depends(get_db), current_us
     from models.invite_code import InviteCode
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    if current_user.is_verified:
-        raise HTTPException(status_code=400, detail="Konto jest już zweryfikowane")
+    if current_user.is_ranked:
+        raise HTTPException(status_code=400, detail="Konto jest już zweryfikowane kodem")
 
     code = db.query(InviteCode).filter(InviteCode.code == body.code.upper()).first()
     if not code or code.used_by_id is not None or now > code.expires_at:
@@ -47,7 +60,7 @@ def use_invite(body: UseInviteRequest, db: Session = Depends(get_db), current_us
 
     code.used_by_id = current_user.id
     code.used_at = now
-    current_user.is_verified = True
+    current_user.is_ranked = True
     db.commit()
     return {"detail": "Konto zostało zweryfikowane. Jesteś teraz widoczny w rankingu."}
 

@@ -160,7 +160,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      {user?.is_verified === false && <VerifyBanner onVerified={handleVerified} />}
+      {user?.is_ranked === false && <VerifyBanner onVerified={handleVerified} />}
       <div className="bg-gray-900 rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>

@@ -8,6 +8,8 @@ export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [unverified, setUnverified] = useState(false)
+
   useEffect(() => {
     if (user) navigate('/', { replace: true })
   }, [user])
@@ -15,11 +17,14 @@ export default function Login() {
   const handle = async (e) => {
     e.preventDefault()
     setError('')
+    setUnverified(false)
     setLoading(true)
     try {
       await login(form.username, form.password)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Błąd logowania')
+      const detail = err.response?.data?.detail || 'Błąd logowania'
+      if (err.response?.status === 403 && detail.includes('e-mail')) setUnverified(true)
+      setError(detail)
     } finally {
       setLoading(false)
     }
@@ -34,7 +39,16 @@ export default function Login() {
         </div>
         <form onSubmit={handle} className="bg-gray-900 rounded-2xl p-8 space-y-5 shadow-xl">
           <h2 className="text-xl font-semibold">Logowanie</h2>
-          {error && <p className="text-red-400 text-sm bg-red-950 rounded-lg px-4 py-2">{error}</p>}
+          {error && (
+            <div className="bg-red-950 rounded-lg px-4 py-2 space-y-1">
+              <p className="text-red-400 text-sm">{error}</p>
+              {unverified && (
+                <Link to="/resend-verification" className="text-xs text-brand-400 hover:underline">
+                  Wyślij ponownie link aktywacyjny →
+                </Link>
+              )}
+            </div>
+          )}
           <div>
             <label className="block text-sm text-gray-400 mb-1">Nazwa użytkownika</label>
             <input

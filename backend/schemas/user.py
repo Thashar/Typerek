@@ -46,6 +46,7 @@ class UserResponse(BaseModel):
     email: str
     is_admin: bool
     is_verified: bool | None
+    is_ranked: bool
     total_points: int
 
     model_config = {"from_attributes": True}
