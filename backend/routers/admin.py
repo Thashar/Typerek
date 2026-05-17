@@ -46,6 +46,29 @@ def admin_users(
     ]
 
 
+@router.post("/sync-all")
+async def admin_sync_all(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    from services import sync, football_api
+    from datetime import date
+
+    from_date = date.today().isoformat()
+    to_date = f"{date.today().year}-12-31"
+    codes = ["WC", "CL", "PL", "SA", "PD", "FL1"]
+    results = {}
+    for code in codes:
+        try:
+            fixtures = await football_api.fetch_fixtures_by_competition(code, from_date, to_date)
+            saved = sum(sync._upsert_fixture(db, f) for f in fixtures)
+            results[code] = saved
+        except Exception:
+            results[code] = 0
+    db.commit()
+    return {"results": results, "total": sum(results.values())}
+
+
 @router.post("/sync/{comp_code}")
 async def admin_sync_competition(
     comp_code: str,

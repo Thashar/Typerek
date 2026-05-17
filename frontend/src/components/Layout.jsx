@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 const baseNav = [
   { to: '/', label: '⚽ Mecze' },
   { to: '/ranking', label: '🏆 Ranking' },
-  { to: '/leagues', label: '🛡️ Ligi' },
   { to: '/profile', label: '👤 Profil' },
 ]
 

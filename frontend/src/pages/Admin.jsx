@@ -13,13 +13,22 @@ function StatCard({ label, value }) {
   )
 }
 
+const COMPETITIONS = [
+  { code: 'WC', label: '🌍 FIFA World Cup 2026' },
+  { code: 'CL', label: '🏆 Champions League' },
+  { code: 'PL', label: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League' },
+  { code: 'SA', label: '🇮🇹 Serie A' },
+  { code: 'PD', label: '🇪🇸 La Liga' },
+  { code: 'FL1', label: '🇫🇷 Ligue 1' },
+]
+
 export default function Admin() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [syncResults, setSyncResults] = useState({})
+  const [syncMsg, setSyncMsg] = useState(null)
 
-  const { data: stats } = useQuery({
+  const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/admin/stats').then(r => r.data),
   })
@@ -29,24 +38,16 @@ export default function Admin() {
     queryFn: () => api.get('/admin/users').then(r => r.data),
   })
 
-  const makeOnSuccess = (leagueId) => (data) => {
-    setSyncResults(prev => ({ ...prev, [leagueId]: `✓ ${data.synced} meczów` }))
-    queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
-  }
-  const makeOnError = (leagueId) => () =>
-    setSyncResults(prev => ({ ...prev, [leagueId]: '✗ błąd' }))
-
-  const syncWC = useMutation({
-    mutationFn: () => api.post('/admin/sync/WC').then(r => r.data),
-    onSuccess: makeOnSuccess('WC'), onError: makeOnError('WC'),
-  })
-  const syncNL = useMutation({
-    mutationFn: () => api.post('/admin/sync/NL').then(r => r.data),
-    onSuccess: makeOnSuccess('NL'), onError: makeOnError('NL'),
-  })
-  const syncEC = useMutation({
-    mutationFn: () => api.post('/admin/sync/EC').then(r => r.data),
-    onSuccess: makeOnSuccess('EC'), onError: makeOnError('EC'),
+  const syncAll = useMutation({
+    mutationFn: () => api.post('/admin/sync-all').then(r => r.data),
+    onSuccess: (data) => {
+      const lines = Object.entries(data.results).map(([k, v]) => `${k}: ${v}`).join(', ')
+      setSyncMsg(`✓ Łącznie ${data.total} meczów (${lines})`)
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['match-dates'] })
+      queryClient.invalidateQueries({ queryKey: ['matches'] })
+    },
+    onError: () => setSyncMsg('✗ Błąd synchronizacji'),
   })
 
   if (!user?.is_admin) {
@@ -66,28 +67,16 @@ export default function Admin() {
       </div>
 
       <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-        <h2 className="font-semibold text-white">Synchronizacja meczów</h2>
-        <p className="text-xs text-gray-400">Kliknij każdy przycisk osobno — zaciąga mecze do końca roku.</p>
-        <div className="flex flex-col gap-2">
-          {[
-            { m: syncWC, id: 'WC', label: '🌍 FIFA World Cup 2026' },
-            { m: syncNL, id: 'NL', label: '🏆 UEFA Nations League' },
-            { m: syncEC, id: 'EC', label: '🇪🇺 UEFA Euro' },
-          ].map(({ m, id, label }) => (
-            <div key={id} className="flex items-center gap-3">
-              <button
-                onClick={() => m.mutate()}
-                disabled={m.isPending}
-                className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition min-w-[220px] text-left"
-              >
-                {m.isPending ? 'Synchronizuję...' : label}
-              </button>
-              {syncResults[id] && (
-                <span className="text-sm text-green-400">{syncResults[id]}</span>
-              )}
-            </div>
-          ))}
-        </div>
+        <h2 className="font-semibold text-white">Synchronizacja danych</h2>
+        <p className="text-xs text-gray-400">Zaciąga mecze wszystkich lig do końca roku: {COMPETITIONS.map(c => c.code).join(', ')}</p>
+        <button
+          onClick={() => { setSyncMsg(null); syncAll.mutate() }}
+          disabled={syncAll.isPending}
+          className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition"
+        >
+          {syncAll.isPending ? '⏳ Synchronizuję...' : '🔄 Synchronizuj wszystkie dane'}
+        </button>
+        {syncMsg && <p className="text-sm text-green-400">{syncMsg}</p>}
       </div>
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">

@@ -61,6 +61,8 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
             },
         },
         "goals": {"home": ft.get("home"), "away": ft.get("away")},
+        "stage": m.get("stage"),
+        "group": m.get("group"),
     }
 
 

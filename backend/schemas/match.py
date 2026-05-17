@@ -24,6 +24,8 @@ class MatchResponse(BaseModel):
     home_score: int | None
     away_score: int | None
     result: str | None
+    stage: str | None
+    match_group: str | None
     league: LeagueInfo
 
     model_config = {"from_attributes": True}

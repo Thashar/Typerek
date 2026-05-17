@@ -12,7 +12,8 @@
       "Bash(curl -s -X POST https://typerek-ngk.vercel.app/api/auth/register -H 'Content-Type: application/json' -d '{\"username\":\"testuser\",\"email\":\"test@test.com\",\"password\":\"test123\"}' -v)",
       "Bash(curl -s https://typerek-ngk.vercel.app/api/debug/db)",
       "Bash(curl -s https://typerek-ngk.vercel.app/api/health)",
-      "WebFetch(domain:typerek-ngk.vercel.app)"
+      "WebFetch(domain:typerek-ngk.vercel.app)",
+      "WebSearch"
     ]
   }
 }
