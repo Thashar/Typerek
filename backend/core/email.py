@@ -16,6 +16,22 @@ def send_email(to: str, subject: str, html: str) -> None:
         raise RuntimeError(f"Resend API error {resp.status_code}: {resp.text}")
 
 
+def send_verification_email(to: str, token: str) -> None:
+    from core.config import settings as cfg
+    link = f"{cfg.FRONTEND_URL}/verify-email?token={token}"
+    html = f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#22c55e">⚽ Typerek — potwierdź e-mail</h2>
+      <p>Kliknij poniższy link, aby aktywować konto. Link wygasa po 24 godzinach.</p>
+      <a href="{link}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#16a34a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
+        Potwierdź adres e-mail
+      </a>
+      <p style="color:#9ca3af;font-size:13px">Jeśli nie zakładałeś konta w Typerek, zignoruj tę wiadomość.</p>
+    </div>
+    """
+    send_email(to, "Typerek — potwierdź adres e-mail", html)
+
+
 def send_reset_email(to: str, token: str) -> None:
     link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     html = f"""

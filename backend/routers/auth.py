@@ -38,6 +38,19 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     code.used_by_id = user.id
     code.used_at = now
     db.commit()
+
+    expire = datetime.now(timezone.utc) + timedelta(hours=24)
+    token = jwt.encode(
+        {"sub": user.email, "type": "email_verify", "exp": expire},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+    try:
+        from core.email import send_verification_email
+        send_verification_email(user.email, token)
+    except Exception:
+        pass  # nie blokuj rejestracji jeśli mail nie doszedł
+
     return user
 
 
@@ -56,6 +69,42 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły link weryfikacyjny")
+    if payload.get("type") != "email_verify":
+        raise HTTPException(status_code=400, detail="Nieprawidłowy token")
+    user = db.query(User).filter(User.email == payload["sub"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
+    if user.is_verified:
+        return {"detail": "Konto już zostało zweryfikowane"}
+    user.is_verified = True
+    db.commit()
+    return {"detail": "Adres e-mail został potwierdzony. Możesz się teraz zalogować."}
+
+
+@router.post("/resend-verification")
+def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    from core.email import send_verification_email
+    user = db.query(User).filter(User.email == body.email.lower().strip()).first()
+    if user and not user.is_verified:
+        expire = datetime.now(timezone.utc) + timedelta(hours=24)
+        token = jwt.encode(
+            {"sub": user.email, "type": "email_verify", "exp": expire},
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM,
+        )
+        try:
+            send_verification_email(user.email, token)
+        except Exception:
+            raise HTTPException(status_code=500, detail="Błąd wysyłania e-maila")
+    return {"detail": "Jeśli konto istnieje i nie jest zweryfikowane, wysłaliśmy nowy link."}
 
 
 @router.post("/forgot-password")
