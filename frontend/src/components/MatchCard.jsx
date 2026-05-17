@@ -1,28 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { submitPrediction } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 
-function LiveMinute({ kickoff }) {
-  const calc = () => {
-    const elapsed = (Date.now() - kickoff.getTime()) / 60000
-    if (elapsed <= 0)  return { min: 1,                        ht: false, elapsed }
-    if (elapsed <= 45) return { min: Math.floor(elapsed),      ht: false, elapsed }
-    if (elapsed <= 60) return { min: 45,                       ht: true,  elapsed }
-    return             { min: Math.floor(elapsed - 15),        ht: false, elapsed }
-  }
-  const [state, setState] = useState(calc)
-  useEffect(() => {
-    const id = setInterval(() => setState(calc()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  if (state.ht)
-    return <div className="text-xs text-yellow-400 font-semibold mb-0.5">Przerwa</div>
-  return <div className="text-xs text-red-500 font-semibold animate-pulse mb-0.5" title={`elapsed: ${state.elapsed?.toFixed(1)} min`}>{state.min}'</div>
-}
 
 const STATUS_LABELS = {
   scheduled: null,
@@ -104,7 +86,6 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
-          {match.status === 'live' && <LiveMinute kickoff={kickoff} />}
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (
