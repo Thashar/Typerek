@@ -1,21 +1,19 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 from core.config import settings
 
 
 def send_email(to: str, subject: str, html: str) -> None:
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = settings.SMTP_FROM or settings.SMTP_USER
-    msg["To"] = to
-    msg.attach(MIMEText(html, "html"))
+    if not settings.RESEND_API_KEY:
+        raise RuntimeError("RESEND_API_KEY nie jest ustawiony")
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.ehlo()
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(msg["From"], to, msg.as_string())
+    resp = httpx.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+        json={"from": settings.RESEND_FROM, "to": [to], "subject": subject, "html": html},
+        timeout=10,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Resend API error {resp.status_code}: {resp.text}")
 
 
 def send_reset_email(to: str, token: str) -> None:
