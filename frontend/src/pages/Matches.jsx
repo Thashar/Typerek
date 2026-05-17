@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import api from '../api/client'
-import { getMatches, getMatchDates } from '../api/matches'
+import { getMatches, getMatchDates, getLive } from '../api/matches'
 import { myPredictions } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 import MatchCard from '../components/MatchCard'
+
+const LIVE_KEY = 'LIVE'
 
 function formatDateBtn(dateStr) {
   const today = format(new Date(), 'yyyy-MM-dd')
@@ -21,6 +23,7 @@ export default function Matches() {
   const [selectedLeague, setSelectedLeague] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
   const dateNavRef = useRef(null)
+  const isLiveMode = selectedLeague === LIVE_KEY
 
   const { data: leagues = [] } = useQuery({
     queryKey: ['match-leagues'],
@@ -37,18 +40,19 @@ export default function Matches() {
   const { data: dates = [] } = useQuery({
     queryKey: ['match-dates', selectedLeague],
     queryFn: () => getMatchDates({ from_date: format(new Date(), 'yyyy-MM-dd'), league_id: selectedLeague }),
-    enabled: !!selectedLeague,
+    enabled: !!selectedLeague && !isLiveMode,
     staleTime: 5 * 60 * 1000,
   })
 
   useEffect(() => {
+    if (isLiveMode) return
     if (dates.length > 0) {
       const today = format(new Date(), 'yyyy-MM-dd')
       setSelectedDate(dates.includes(today) ? today : dates[0])
     } else {
       setSelectedDate(null)
     }
-  }, [dates])
+  }, [dates, isLiveMode])
 
   useEffect(() => {
     if (selectedDate && dateNavRef.current) {
@@ -57,10 +61,17 @@ export default function Matches() {
     }
   }, [selectedDate])
 
+  const { data: liveData, isLoading: liveLoading } = useQuery({
+    queryKey: ['matches-live'],
+    queryFn: getLive,
+    enabled: isLiveMode,
+    refetchInterval: 30000,
+  })
+
   const { data, isLoading } = useQuery({
     queryKey: ['matches', selectedLeague, selectedDate],
     queryFn: () => getMatches({ from_date: selectedDate, to_date: selectedDate, league_id: selectedLeague }),
-    enabled: !!selectedDate && !!selectedLeague,
+    enabled: !!selectedDate && !!selectedLeague && !isLiveMode,
     refetchInterval: 60000,
   })
 
@@ -73,7 +84,9 @@ export default function Matches() {
 
   const predMap = {}
   predsData?.forEach(p => { predMap[p.match_id] = p })
-  const matches = data?.matches ?? []
+
+  const matches = isLiveMode ? (liveData?.matches ?? []) : (data?.matches ?? [])
+  const loading = isLiveMode ? liveLoading : isLoading
 
   const prevDate = () => {
     const idx = dates.indexOf(selectedDate)
@@ -96,6 +109,17 @@ export default function Matches() {
     <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
       {/* Liga selector */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          onClick={() => setSelectedLeague(LIVE_KEY)}
+          className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+            isLiveMode
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+          }`}
+        >
+          <span className={isLiveMode ? 'animate-pulse' : ''}>●</span>
+          Na żywo
+        </button>
         {leagues.map(l => (
           <button
             key={l.id}
@@ -112,8 +136,8 @@ export default function Matches() {
         ))}
       </div>
 
-      {/* Nawigacja po dniach */}
-      {dates.length > 0 && (
+      {/* Nawigacja po dniach — ukryta w trybie live */}
+      {!isLiveMode && dates.length > 0 && (
         <>
           <div className="flex items-center justify-between">
             <button onClick={prevDate} disabled={dates.indexOf(selectedDate) === 0}
@@ -139,11 +163,15 @@ export default function Matches() {
         </>
       )}
 
-      {dates.length === 0 && selectedLeague && (
+      {!isLiveMode && dates.length === 0 && selectedLeague && (
         <p className="text-center text-gray-500 py-8 text-sm">Brak nadchodzących meczów dla tej ligi</p>
       )}
 
-      {isLoading && <div className="text-center text-gray-500 py-12">Ładowanie meczów...</div>}
+      {loading && <div className="text-center text-gray-500 py-12">Ładowanie meczów...</div>}
+
+      {!loading && isLiveMode && matches.length === 0 && (
+        <p className="text-center text-gray-500 py-12 text-sm">Brak trwających meczów</p>
+      )}
 
       <div className="space-y-3">
         {matches.map(match => (
