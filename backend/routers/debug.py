@@ -39,6 +39,35 @@ async def debug_apicheck():
         return {"status": "error", "detail": str(e)}
 
 
+@router.get("/league-check")
+async def debug_league_check():
+    """Sprawdza co API zwraca dla konkretnych lig z date (nie season)."""
+    import httpx
+    from core.config import settings
+    from datetime import date, timedelta
+
+    key = settings.API_FOOTBALL_KEY
+    results = {}
+
+    # Sprawdz nastepne 30 dni dla kazdej ligi
+    from_date = date.today().isoformat()
+    to_date = (date.today() + timedelta(days=30)).isoformat()
+
+    for league_id, name in [(1, "WorldCup"), (10, "Friendlies"), (106, "Ekstraklasa"), (107, "I_liga_PL")]:
+        try:
+            async with httpx.AsyncClient(timeout=8) as client:
+                r = await client.get(
+                    "https://v3.football.api-sports.io/fixtures",
+                    headers={"x-apisports-key": key},
+                    params={"league": league_id, "from": from_date, "to": to_date},
+                )
+                data = r.json()
+                results[name] = {"count": data.get("results", 0), "errors": data.get("errors", [])}
+        except Exception as e:
+            results[name] = {"error": str(e)}
+    return results
+
+
 @router.get("/sync-check")
 async def debug_sync_check():
     """Sprawdza co API zwraca dla dzisiejszej daty i rozne sezony per liga."""
