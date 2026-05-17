@@ -97,6 +97,40 @@ async def debug_sync_check():
     return results
 
 
+@router.get("/live-raw")
+async def debug_live_raw():
+    """Zwraca surową odpowiedź API dla meczów IN_PLAY."""
+    import httpx
+    from core.config import settings
+    key = settings.FOOTBALL_DATA_API_KEY
+    results = {}
+    codes = ["PL", "PD", "SA", "FL1", "CL", "WC"]
+    async with httpx.AsyncClient(timeout=10) as client:
+        for code in codes:
+            try:
+                r = await client.get(
+                    f"https://api.football-data.org/v4/competitions/{code}/matches",
+                    headers={"X-Auth-Token": key},
+                    params={"status": "IN_PLAY"},
+                )
+                matches = r.json().get("matches", [])
+                results[code] = [
+                    {
+                        "id": m.get("id"),
+                        "status": m.get("status"),
+                        "minute": m.get("minute"),
+                        "home": m.get("homeTeam", {}).get("name"),
+                        "away": m.get("awayTeam", {}).get("name"),
+                        "score": m.get("score", {}).get("fullTime"),
+                        "all_keys": list(m.keys()),
+                    }
+                    for m in matches
+                ]
+            except Exception as e:
+                results[code] = {"error": str(e)}
+    return results
+
+
 @router.get("/sync/{comp_code}")
 async def debug_sync_comp(comp_code: str, db: Session = Depends(get_db)):
     try:
