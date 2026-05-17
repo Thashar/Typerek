@@ -1,5 +1,7 @@
-import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
+import { getLive } from '../api/matches'
 
 const baseNav = [
   { to: '/', label: '⚽ Mecze' },
@@ -7,6 +9,29 @@ const baseNav = [
   { to: '/ranking', label: '🏆 Ranking' },
   { to: '/profile', label: '👤 Profil' },
 ]
+
+function LiveIndicator() {
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['matches-live'],
+    queryFn: getLive,
+    refetchInterval: 30000,
+    staleTime: 0,
+  })
+
+  const hasLive = (data?.total ?? 0) > 0
+
+  return (
+    <button
+      onClick={() => navigate('/?live=1')}
+      className={`flex items-center gap-1 text-xs font-semibold transition ${hasLive ? 'text-red-400 hover:text-red-300' : 'text-gray-600 hover:text-gray-500'}`}
+      title={hasLive ? `${data.total} mecz${data.total === 1 ? '' : data.total < 5 ? 'e' : 'ów'} na żywo` : 'Brak meczów na żywo'}
+    >
+      <span className={`text-base leading-none ${hasLive ? 'animate-pulse' : ''}`}>●</span>
+      Na żywo
+    </button>
+  )
+}
 
 export default function Layout() {
   const { user, loading } = useAuth()
@@ -23,7 +48,10 @@ export default function Layout() {
       <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <span className="font-bold text-brand-400 text-lg">⚽ Typerek</span>
-          <span className="text-sm text-gray-400">{user.username} · <span className="text-brand-400 font-bold">{user.total_points} pkt</span></span>
+          <div className="flex items-center gap-4">
+            <LiveIndicator />
+            <span className="text-sm text-gray-400">{user.username} · <span className="text-brand-400 font-bold">{user.total_points} pkt</span></span>
+          </div>
         </div>
       </header>
 

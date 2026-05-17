@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import api from '../api/client'
@@ -20,10 +21,15 @@ function formatDateBtn(dateStr) {
 
 export default function Matches() {
   const { user } = useAuth()
-  const [selectedLeague, setSelectedLeague] = useState(null)
+  const [searchParams] = useSearchParams()
+  const [selectedLeague, setSelectedLeague] = useState(searchParams.get('live') === '1' ? LIVE_KEY : null)
   const [selectedDate, setSelectedDate] = useState(null)
   const dateNavRef = useRef(null)
   const isLiveMode = selectedLeague === LIVE_KEY
+
+  useEffect(() => {
+    if (searchParams.get('live') === '1') setSelectedLeague(LIVE_KEY)
+  }, [searchParams])
 
   const { data: leagues = [] } = useQuery({
     queryKey: ['match-leagues'],
@@ -109,17 +115,6 @@ export default function Matches() {
     <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
       {/* Liga selector */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        <button
-          onClick={() => setSelectedLeague(LIVE_KEY)}
-          className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-            isLiveMode
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-          }`}
-        >
-          <span className={isLiveMode ? 'animate-pulse' : ''}>●</span>
-          Na żywo
-        </button>
         {leagues.map(l => (
           <button
             key={l.id}
