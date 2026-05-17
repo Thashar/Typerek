@@ -85,6 +85,9 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
+          {match.status === 'live' && match.minute != null && (
+            <div className="text-xs text-red-400 font-semibold animate-pulse mb-0.5">{match.minute}'</div>
+          )}
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (

@@ -29,6 +29,7 @@ class MatchResponse(BaseModel):
     status: MatchStatus
     home_score: int | None
     away_score: int | None
+    minute: int | None
     result: str | None
     stage: str | None
     match_group: str | None
