@@ -160,7 +160,13 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      {user?.is_ranked === false && <VerifyBanner onVerified={handleVerified} />}
+      {user?.is_ranked
+        ? <div className="bg-green-950/60 border border-green-700/50 rounded-xl px-4 py-3 flex items-center gap-2">
+            <span className="text-green-400 font-semibold text-sm">Zweryfikowany</span>
+            <span className="text-green-200/60 text-xs">— jesteś widoczny w rankingu</span>
+          </div>
+        : <VerifyBanner onVerified={handleVerified} />
+      }
       <div className="bg-gray-900 rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
