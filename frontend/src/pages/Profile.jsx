@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { formatInTimeZone } from 'date-fns-tz'
+import { pl } from 'date-fns/locale'
 import { myPredictions, submitPrediction, deletePrediction } from '../api/predictions'
 import { getSettings } from '../api/settings'
 import { useAuth } from '../context/AuthContext'
@@ -30,6 +32,7 @@ function PredRow({ p, onSaved }) {
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{p.match.home_team} – {p.match.away_team}</p>
           <p className="text-xs text-gray-500">{p.match.league.name}</p>
+          <p className="text-xs text-gray-600">{formatInTimeZone(new Date(p.match.kickoff + 'Z'), 'Europe/Warsaw', 'd MMM · HH:mm', { locale: pl })}</p>
         </div>
 
         {!editing && (

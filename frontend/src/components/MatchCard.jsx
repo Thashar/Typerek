@@ -78,30 +78,20 @@ export default function MatchCard({ match, prediction }) {
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 justify-end">
-          {match.home_team_logo && <img src={match.home_team_logo} className="w-6 h-6 object-contain" alt="" />}
-          <span className="font-semibold text-right">{match.home_team}</span>
-        </div>
+      <div className="flex items-center justify-center gap-2 flex-wrap">
+        <span className="font-semibold text-right">{match.home_team}</span>
+        {match.home_team_logo && <img src={match.home_team_logo} className="w-6 h-6 object-contain" alt="" />}
 
-        <div className="flex items-center gap-2 shrink-0">
-          {match.status === 'finished' ? (
-            <span className="text-xl font-bold w-16 text-center">
-              {match.home_score} – {match.away_score}
-            </span>
-          ) : match.status === 'live' ? (
-            <span className="text-xl font-bold w-16 text-center text-red-400">
-              {match.home_score ?? 0} – {match.away_score ?? 0}
-            </span>
-          ) : (
-            <span className="text-gray-500 font-bold w-16 text-center">vs</span>
-          )}
-        </div>
+        {match.status === 'finished' ? (
+          <span className="text-xl font-bold mx-1">{match.home_score} – {match.away_score}</span>
+        ) : match.status === 'live' ? (
+          <span className="text-xl font-bold mx-1 text-red-400">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
+        ) : (
+          <span className="text-gray-500 font-bold mx-1">vs</span>
+        )}
 
-        <div className="flex-1 flex items-center gap-2">
-          {match.away_team_logo && <img src={match.away_team_logo} className="w-6 h-6 object-contain" alt="" />}
-          <span className="font-semibold">{match.away_team}</span>
-        </div>
+        {match.away_team_logo && <img src={match.away_team_logo} className="w-6 h-6 object-contain" alt="" />}
+        <span className="font-semibold">{match.away_team}</span>
       </div>
 
       {user && (
