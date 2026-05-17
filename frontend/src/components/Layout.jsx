@@ -24,10 +24,10 @@ function LiveIndicator() {
   return (
     <button
       onClick={() => navigate('/?live=1')}
-      className={`flex items-center gap-1 text-xs font-semibold transition ${hasLive ? 'text-red-400 hover:text-red-300' : 'text-gray-600 hover:text-gray-500'}`}
+      className={`flex items-center gap-1.5 text-xs font-semibold transition ${hasLive ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-500'}`}
       title={hasLive ? `${data.total} mecz${data.total === 1 ? '' : data.total < 5 ? 'e' : 'ów'} na żywo` : 'Brak meczów na żywo'}
     >
-      <span className={`text-base leading-none ${hasLive ? 'animate-pulse' : ''}`}>●</span>
+      <span className={`inline-block w-2 h-2 rounded-full ${hasLive ? 'bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.8)] animate-pulse' : 'bg-gray-600'}`} />
       Na żywo
     </button>
   )
