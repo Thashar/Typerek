@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { writeFileSync } from 'fs'
+import { writeFileSync, mkdirSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
 const buildId = Date.now().toString()
 
 export default defineConfig({
@@ -10,7 +13,9 @@ export default defineConfig({
     {
       name: 'generate-version',
       buildStart() {
-        writeFileSync('public/version.json', JSON.stringify({ id: buildId }))
+        const publicDir = join(__dirname, 'public')
+        mkdirSync(publicDir, { recursive: true })
+        writeFileSync(join(publicDir, 'version.json'), JSON.stringify({ id: buildId }))
       },
     },
   ],
