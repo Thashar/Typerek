@@ -9,8 +9,9 @@ import models.prediction
 import models.private_league
 import models.invite_code
 import models.settings
+import models.chat
 
-from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin, game_settings, users
+from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin, game_settings, users, chat
 
 app = FastAPI(title="Typerek API", version="0.1.0")
 
@@ -32,6 +33,7 @@ app.include_router(debug.router)
 app.include_router(admin.router)
 app.include_router(game_settings.router)
 app.include_router(users.router)
+app.include_router(chat.router)
 
 try:
     Base.metadata.create_all(bind=engine)

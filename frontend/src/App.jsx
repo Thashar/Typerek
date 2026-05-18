@@ -10,6 +10,7 @@ import Ranking from './pages/Ranking'
 import Profile from './pages/Profile'
 import Admin from './pages/Admin'
 import AdminUserProfile from './pages/AdminUserProfile'
+import Chat from './pages/Chat'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/worldcup" element={<WorldCup />} />
           <Route path="/ranking" element={<Ranking />} />
 <Route path="/profile" element={<Profile />} />
+          <Route path="/chat" element={<Chat />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/users/:userId" element={<AdminUserProfile />} />
         </Route>

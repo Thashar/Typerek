@@ -7,6 +7,7 @@ const baseNav = [
   { to: '/', label: '⚽ Mecze' },
   { to: '/worldcup', label: '🌍 Mundial' },
   { to: '/ranking', label: '🏆 Ranking' },
+  { to: '/chat', label: '💬 Chat' },
   { to: '/profile', label: '👤 Profil' },
 ]
 
