@@ -108,9 +108,9 @@ export default function Chat() {
             <React.Fragment key={msg.id}>
               {idx === firstUnreadIdx && (
                 <div ref={separatorRef} className="flex items-center gap-3 py-1">
-                  <div className="flex-1 h-px bg-brand-500/40" />
-                  <span className="text-xs text-brand-400 font-semibold shrink-0 px-1">Nowe wiadomości</span>
-                  <div className="flex-1 h-px bg-brand-500/40" />
+                  <div className="flex-1 h-px bg-gray-700" />
+                  <span className="text-xs text-gray-600 shrink-0 px-1">Nowe wiadomości</span>
+                  <div className="flex-1 h-px bg-gray-700" />
                 </div>
               )}
               <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
