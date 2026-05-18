@@ -30,18 +30,17 @@ function resizeToBase64(file) {
 function ChangeUsernameForm({ onUpdated }) {
   const [open, setOpen] = useState(false)
   const [newUsername, setNewUsername] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const reset = () => { setOpen(false); setNewUsername(''); setPassword(''); setError('') }
+  const reset = () => { setOpen(false); setNewUsername(''); setError('') }
 
   const handle = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      await api.put('/users/me/username', { new_username: newUsername, password })
+      await api.put('/users/me/username', { new_username: newUsername })
       await onUpdated()
       reset()
     } catch (err) {
@@ -73,16 +72,6 @@ function ChangeUsernameForm({ onUpdated }) {
           autoFocus
         />
         <p className="text-xs text-gray-600 mt-0.5">Tylko litery (a–z, A–Z), cyfry i _</p>
-      </div>
-      <div>
-        <label className="block text-xs text-gray-400 mb-1">Aktualne hasło</label>
-        <input
-          type="password"
-          className="w-full bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
       </div>
       <div className="flex gap-2 pt-1">
         <button
