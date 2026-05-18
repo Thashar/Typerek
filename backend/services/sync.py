@@ -112,8 +112,15 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.away_team = teams["away"]["name"]
     match.home_team_logo = teams["home"].get("logo")
     match.away_team_logo = teams["away"].get("logo")
+    parsed_status = _parse_status(status_short)
+    # Jeśli API twierdzi że mecz jest LIVE, ale minęły 4h od kickoffu — ignoruj i zamknij
+    if parsed_status == MatchStatus.LIVE:
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=4)
+        if kickoff < cutoff:
+            parsed_status = MatchStatus.FINISHED
+
     match.kickoff = kickoff
-    match.status = _parse_status(status_short)
+    match.status = parsed_status
     match.status_short = status_short
     match.home_score = goals.get("home")
     match.away_score = goals.get("away")
