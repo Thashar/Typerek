@@ -64,8 +64,8 @@ export default function Layout() {
   if (!user) return <Navigate to="/login" replace />
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">
+    <div className="h-screen flex flex-col overflow-hidden">
+      <header className="bg-gray-900 border-b border-gray-800 z-40 shrink-0">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <span className="font-bold text-brand-400 text-lg">⚽ Typerek</span>
           <div className="flex items-center gap-4">
@@ -75,7 +75,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 pb-20">
+      <main className="flex-1 overflow-y-auto pb-20">
         <Outlet />
       </main>
 

@@ -73,6 +73,17 @@ async def update_live_and_recent(db: Session) -> int:
     for f in fixtures:
         updated += _upsert_fixture(db, f)
 
+    # Zabezpieczenie: mecze ktore tkwia w statusie LIVE ponad 3h od kickoffu
+    # (np. API przestalo je zwracac albo uzylo niestandardowego statusu)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+    stuck = db.query(Match).filter(
+        Match.status == MatchStatus.LIVE,
+        Match.kickoff < cutoff,
+    ).all()
+    for match in stuck:
+        match.status = MatchStatus.FINISHED
+        updated += 1
+
     if updated:
         _calculate_points_for_finished(db)
         db.commit()
