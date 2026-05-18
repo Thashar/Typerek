@@ -71,7 +71,7 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
 
 
 async def _get(path: str, params: dict = None) -> dict:
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=8) as client:
         r = await client.get(f"{_BASE_URL}{path}", headers=_headers(), params=params or {})
         r.raise_for_status()
         return r.json()
