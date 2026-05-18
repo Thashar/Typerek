@@ -98,7 +98,7 @@ export default function Chat() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 flex flex-col h-full">
-      <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3 scrollbar-hide">
         {messages.length === 0 && (
           <p className="text-gray-500 text-center pt-12 text-sm">Brak wiadomości. Napisz coś!</p>
         )}
