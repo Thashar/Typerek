@@ -144,6 +144,20 @@ export default function Admin() {
     queryFn: () => api.get('/admin/users').then(r => r.data),
   })
 
+  const { data: liveMatches = [], refetch: refetchLive } = useQuery({
+    queryKey: ['admin-live-matches'],
+    queryFn: () => api.get('/admin/matches/live').then(r => r.data),
+    refetchInterval: 30000,
+  })
+
+  const forceFinish = useMutation({
+    mutationFn: (id) => api.post(`/admin/matches/${id}/force-finish`),
+    onSuccess: () => {
+      refetchLive()
+      queryClient.invalidateQueries({ queryKey: ['matches-live'] })
+    },
+  })
+
 const clearChat = useMutation({
     mutationFn: () => api.delete('/admin/chat'),
     onSuccess: () => {
@@ -266,6 +280,36 @@ const clearChat = useMutation({
           </button>
         )}
       </div>
+
+      {liveMatches.length > 0 && (
+        <div className="bg-gray-800 rounded-xl overflow-hidden border border-red-900">
+          <div className="px-4 py-3 border-b border-gray-700 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <h2 className="font-semibold text-white">Mecze na żywo ({liveMatches.length})</h2>
+          </div>
+          <div className="divide-y divide-gray-700">
+            {liveMatches.map(m => (
+              <div key={m.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">
+                    {m.home_team} {m.home_score ?? '?'} – {m.away_score ?? '?'} {m.away_team}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {m.status_short}{m.minute ? ` ${m.minute}'` : ''} · kickoff: {m.kickoff?.slice(0, 16).replace('T', ' ')}
+                  </div>
+                </div>
+                <button
+                  onClick={() => forceFinish.mutate(m.id)}
+                  disabled={forceFinish.isPending}
+                  className="shrink-0 text-xs bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
+                >
+                  Zamknij mecz
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-700">

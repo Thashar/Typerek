@@ -144,6 +144,44 @@ async def admin_sync_all(
     return {"results": results, "total": sum(results.values())}
 
 
+@router.get("/matches/live")
+def live_matches(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    matches = db.query(Match).filter(Match.status == MatchStatus.LIVE).all()
+    return [
+        {
+            "id": m.id,
+            "home_team": m.home_team,
+            "away_team": m.away_team,
+            "home_score": m.home_score,
+            "away_score": m.away_score,
+            "kickoff": m.kickoff.isoformat() if m.kickoff else None,
+            "status_short": m.status_short,
+            "minute": m.minute,
+        }
+        for m in matches
+    ]
+
+
+@router.post("/matches/{match_id}/force-finish")
+def force_finish_match(
+    match_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    from fastapi import HTTPException
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Mecz nie istnieje")
+    match.status = MatchStatus.FINISHED
+    from services.sync import _calculate_points_for_finished
+    _calculate_points_for_finished(db)
+    db.commit()
+    return {"detail": "ok"}
+
+
 @router.post("/sync/{comp_code}")
 async def admin_sync_competition(
     comp_code: str,
