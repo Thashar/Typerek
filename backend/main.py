@@ -44,6 +44,8 @@ try:
     from sqlalchemy import text as _text
     with engine.connect() as _conn:
         _conn.execute(_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT"))
+        _conn.execute(_text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS live_started_at TIMESTAMP"))
+        _conn.execute(_text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS second_half_started_at TIMESTAMP"))
         _conn.commit()
 except Exception:
     pass

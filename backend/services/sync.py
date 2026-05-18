@@ -128,6 +128,13 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.minute = f["fixture"]["status"].get("elapsed")
     match.stage = f.get("stage")
     match.match_group = f.get("group")
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if status_short in ('1H', 'LIVE') and match.live_started_at is None:
+        match.live_started_at = now
+    elif status_short == '2H' and match.second_half_started_at is None:
+        match.second_half_started_at = now
+
     return 1
 
 

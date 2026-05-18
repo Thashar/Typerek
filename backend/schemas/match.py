@@ -34,6 +34,8 @@ class MatchResponse(BaseModel):
     result: str | None
     stage: str | None
     match_group: str | None
+    live_started_at: datetime | None
+    second_half_started_at: datetime | None
     league: LeagueInfo
 
     model_config = {"from_attributes": True}

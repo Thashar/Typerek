@@ -34,6 +34,8 @@ class Match(Base):
     status_short: Mapped[str | None] = mapped_column(String(10), nullable=True)
     stage: Mapped[str | None] = mapped_column(String(100), nullable=True)
     match_group: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    live_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    second_half_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     league: Mapped["League"] = relationship("League", back_populates="matches")
     predictions: Mapped[list["Prediction"]] = relationship("Prediction", back_populates="match")

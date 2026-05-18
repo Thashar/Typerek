@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -18,6 +18,51 @@ const OUTCOME_COLORS = {
   '1': 'text-green-400',
   'X': 'text-yellow-400',
   '2': 'text-blue-400',
+}
+
+function useLiveMinute(match) {
+  const [state, setState] = useState({ minute: null, finished: false })
+
+  useEffect(() => {
+    if (match.status !== 'live') {
+      setState({ minute: null, finished: false })
+      return
+    }
+
+    const compute = () => {
+      const now = Date.now()
+      const short = match.status_short
+
+      if (short === 'HT') {
+        setState({ minute: null, finished: false })
+        return
+      }
+
+      let minute = null
+      let finished = false
+
+      if (short === '1H' && match.live_started_at) {
+        const elapsed = Math.floor((now - new Date(match.live_started_at + 'Z')) / 60000)
+        minute = Math.min(45, Math.max(1, elapsed + 1))
+      } else if (short === '2H' && match.second_half_started_at) {
+        const elapsed = Math.floor((now - new Date(match.second_half_started_at + 'Z')) / 60000)
+        const m = 45 + Math.max(0, elapsed)
+        if (m >= 92) {
+          finished = true
+        } else {
+          minute = Math.min(90, m)
+        }
+      }
+
+      setState({ minute, finished })
+    }
+
+    compute()
+    const id = setInterval(compute, 30000)
+    return () => clearInterval(id)
+  }, [match.status, match.status_short, match.live_started_at, match.second_half_started_at])
+
+  return state
 }
 
 function ScoreInput({ value, onChange, disabled }) {
@@ -56,6 +101,8 @@ export default function MatchCard({ match, prediction }) {
   const [away, setAway] = useState(prediction?.predicted_away ?? '')
   const [saved, setSaved] = useState(!!prediction)
 
+  const { minute: liveMinute, finished: locallyFinished } = useLiveMinute(match)
+
   const mutation = useMutation({
     mutationFn: () => submitPrediction({ match_id: match.id, predicted_home: home, predicted_away: away }),
     onSuccess: () => {
@@ -69,17 +116,22 @@ export default function MatchCard({ match, prediction }) {
   const dateStr = formatInTimeZone(kickoff, 'Europe/Warsaw', 'd MMM', { locale: pl })
 
   const pts = prediction?.points
+  const isLive = match.status === 'live' && !locallyFinished
+  const isHT = isLive && match.status_short === 'HT'
+  const showAsFinished = match.status === 'finished' || locallyFinished
 
   return (
     <div className="bg-gray-900 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>{match.league.name} · {match.league.country}</span>
-        <span className={match.status === 'live' ? 'text-red-500 font-bold animate-pulse' : ''}>
-          {match.status === 'live'
-            ? match.status_short === 'HT'
+        <span className={isLive ? 'text-red-500 font-bold animate-pulse' : ''}>
+          {isLive
+            ? isHT
               ? 'Przerwa'
-              : `Na żywo${match.minute != null ? ` ${match.minute}'` : ''}`
-            : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
+              : `LIVE${liveMinute != null ? ` ${liveMinute}'` : ''}`
+            : locallyFinished
+              ? 'Zakończony'
+              : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
         </span>
       </div>
 
@@ -90,13 +142,13 @@ export default function MatchCard({ match, prediction }) {
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
-          {match.status === 'finished' ? (
+          {showAsFinished ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
-          ) : match.status === 'live' ? (
+          ) : isLive ? (
             <div className="flex flex-col items-center leading-none gap-0.5">
-              {(match.status_short === 'HT' || match.minute != null) && (
+              {(isHT || liveMinute != null) && (
                 <span className="text-[10px] font-bold text-red-500 animate-pulse">
-                  {match.status_short === 'HT' ? 'HT' : `${match.minute}'`}
+                  {isHT ? 'HT' : `${liveMinute}'`}
                 </span>
               )}
               <span className="text-xl text-red-500">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
