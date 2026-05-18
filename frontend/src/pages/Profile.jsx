@@ -27,7 +27,7 @@ function resizeToBase64(file) {
   })
 }
 
-function ChangeUsernameForm({ onUpdated }) {
+function ChangeUsernameForm({ username, email, onUpdated }) {
   const [open, setOpen] = useState(false)
   const [newUsername, setNewUsername] = useState('')
   const [error, setError] = useState('')
@@ -53,27 +53,31 @@ function ChangeUsernameForm({ onUpdated }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-xs text-gray-500 hover:text-gray-300 transition">
-        Zmień nick
-      </button>
+      <>
+        <h2 className="text-xl font-bold truncate">{username}</h2>
+        <p className="text-gray-400 text-sm truncate">{email}</p>
+        <button onClick={() => setOpen(true)} className="text-xs text-gray-500 hover:text-gray-300 transition">
+          Zmień nick
+        </button>
+      </>
     )
   }
 
   return (
-    <form onSubmit={handle} className="mt-3 space-y-2 border-t border-gray-800 pt-3">
+    <form onSubmit={handle} className="space-y-2">
       {error && <p className="text-red-400 text-xs bg-red-950 rounded px-3 py-1.5">{error}</p>}
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Nowa nazwa użytkownika</label>
         <input
           className="w-full bg-gray-800 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
           value={newUsername}
           onChange={e => setNewUsername(e.target.value)}
+          placeholder="Nowa nazwa użytkownika"
           required minLength={3} maxLength={50}
           autoFocus
         />
         <p className="text-[10px] text-gray-600 mt-0.5">Tylko litery (a–z, A–Z), cyfry i _</p>
       </div>
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2">
         <button
           type="submit"
           disabled={loading}
@@ -179,9 +183,7 @@ export default function Profile() {
           <div className="flex items-center gap-4 min-w-0">
             <Avatar user={user} onUpdated={refreshUser} />
             <div className="min-w-0">
-              <h2 className="text-xl font-bold truncate">{user?.username}</h2>
-              <p className="text-gray-400 text-sm truncate">{user?.email}</p>
-              <ChangeUsernameForm onUpdated={refreshUser} />
+              <ChangeUsernameForm username={user?.username} email={user?.email} onUpdated={refreshUser} />
             </div>
           </div>
           <button onClick={handleLogout} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition shrink-0">
