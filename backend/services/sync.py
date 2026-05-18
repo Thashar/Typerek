@@ -7,8 +7,9 @@ from services import football_api
 
 
 def _parse_status(short: str) -> MatchStatus:
-    live = {"1H", "HT", "2H", "ET", "BT", "P", "LIVE"}
-    finished = {"FT", "AET", "PEN"}
+    # ET/BT/P = dogrywka/karne — wynik po 90 min jest juz znany, zamykamy
+    live = {"1H", "HT", "2H", "LIVE"}
+    finished = {"FT", "AET", "PEN", "ET", "BT", "P"}
     cancelled = {"CANC", "ABD", "AWD", "WO"}
     postponed = {"PST"}
     if short in live:
@@ -113,9 +114,9 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.home_team_logo = teams["home"].get("logo")
     match.away_team_logo = teams["away"].get("logo")
     parsed_status = _parse_status(status_short)
-    # Jeśli API twierdzi że mecz jest LIVE, ale minęły 4h od kickoffu — ignoruj i zamknij
+    # Fallback: API mowi LIVE ale minelo 2h od kickoffu (90 min + przerwa + czas doliczony)
     if parsed_status == MatchStatus.LIVE:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=4)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
         if kickoff < cutoff:
             parsed_status = MatchStatus.FINISHED
 
