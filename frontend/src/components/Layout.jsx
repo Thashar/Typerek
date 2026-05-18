@@ -1,13 +1,14 @@
-import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { getLive } from '../api/matches'
+import api from '../api/client'
 
 const baseNav = [
   { to: '/', label: '⚽ Mecze' },
   { to: '/worldcup', label: '🌍 Mundial' },
   { to: '/ranking', label: '🏆 Ranking' },
-  { to: '/chat', label: '💬 Chat' },
+  { to: '/chat', label: '💬 Chat', chatBadge: true },
   { to: '/profile', label: '👤 Profil' },
 ]
 
@@ -34,8 +35,26 @@ function LiveIndicator() {
   )
 }
 
+function useChatUnread(userId) {
+  const { pathname } = useLocation()
+  const isOnChat = pathname === '/chat'
+
+  const { data: messages = [] } = useQuery({
+    queryKey: ['chat-messages'],
+    queryFn: () => api.get('/chat/messages').then(r => r.data),
+    refetchInterval: isOnChat ? false : 30000,
+    staleTime: 30000,
+    enabled: !!userId,
+  })
+
+  if (isOnChat) return 0
+  const lastReadId = parseInt(localStorage.getItem('chat_last_read') || '0')
+  return messages.filter(m => m.id > lastReadId && m.user_id !== userId).length
+}
+
 export default function Layout() {
   const { user, loading } = useAuth()
+  const unreadChat = useChatUnread(user?.id)
   const nav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
 
   if (loading) {
@@ -62,7 +81,7 @@ export default function Layout() {
 
       <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-40">
         <div className="max-w-2xl mx-auto flex">
-          {nav.map(({ to, label }) => (
+          {nav.map(({ to, label, chatBadge }) => (
             <NavLink
               key={to}
               to={to}
@@ -71,7 +90,14 @@ export default function Layout() {
                 `flex-1 py-3 text-center text-xs font-medium transition ${isActive ? 'text-brand-400' : 'text-gray-500 hover:text-gray-300'}`
               }
             >
-              {label}
+              <span className="relative inline-flex items-center justify-center">
+                {label}
+                {chatBadge && unreadChat > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 leading-none">
+                    {unreadChat > 99 ? '99+' : unreadChat}
+                  </span>
+                )}
+              </span>
             </NavLink>
           ))}
         </div>

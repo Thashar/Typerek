@@ -7,9 +7,9 @@ import api from '../api/client'
 const getMessages = () => api.get('/chat/messages').then(r => r.data)
 const postMessage = (content) => api.post('/chat/messages', { content }).then(r => r.data)
 
-function Avatar({ username, avatar, size = 7 }) {
+function Avatar({ username, avatar }) {
   return (
-    <div className={`w-${size} h-${size} rounded-full overflow-hidden bg-gray-700 shrink-0 flex items-center justify-center`}>
+    <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-700 shrink-0 flex items-center justify-center">
       {avatar
         ? <img src={avatar} className="w-full h-full object-cover" alt="" />
         : <span className="text-xs font-bold text-gray-400">{username.slice(0, 2).toUpperCase()}</span>
@@ -33,14 +33,12 @@ export default function Chat() {
     staleTime: 0,
   })
 
-  const sendMut = useMutation({
-    mutationFn: postMessage,
-    onSuccess: (newMsg) => {
-      qc.setQueryData(['chat-messages'], (old = []) => [...old, newMsg])
-      setText('')
-      inputRef.current?.focus()
-    },
-  })
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastId = messages[messages.length - 1].id
+      localStorage.setItem('chat_last_read', String(lastId))
+    }
+  }, [messages])
 
   useEffect(() => {
     if (messages.length !== prevCountRef.current) {
@@ -48,6 +46,16 @@ export default function Chat() {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
+
+  const sendMut = useMutation({
+    mutationFn: postMessage,
+    onSuccess: (newMsg) => {
+      qc.setQueryData(['chat-messages'], (old = []) => [...old, newMsg])
+      localStorage.setItem('chat_last_read', String(newMsg.id))
+      setText('')
+      inputRef.current?.focus()
+    },
+  })
 
   const handleSend = (e) => {
     e.preventDefault()
@@ -64,26 +72,23 @@ export default function Chat() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 flex flex-col" style={{ height: 'calc(100dvh - 120px)' }}>
-      <h2 className="text-xl font-bold py-4 shrink-0">Chat</h2>
-
-      <div className="flex-1 overflow-y-auto space-y-3 pb-2">
+    <div
+      className="max-w-2xl mx-auto px-4 flex flex-col"
+      style={{ height: 'calc(100svh - 7rem)' }}
+    >
+      <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3">
         {messages.length === 0 && (
-          <p className="text-gray-500 text-center py-12 text-sm">Brak wiadomości. Napisz coś!</p>
+          <p className="text-gray-500 text-center pt-12 text-sm">Brak wiadomości. Napisz coś!</p>
         )}
         {messages.map((msg) => {
           const isMe = msg.user_id === user?.id
           return (
             <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-              <Avatar username={msg.username} avatar={msg.avatar} size={7} />
+              <Avatar username={msg.username} avatar={msg.avatar} />
               <div className={`flex flex-col max-w-[72%] ${isMe ? 'items-end' : 'items-start'}`}>
-                {!isMe && (
-                  <span className="text-xs text-gray-500 mb-0.5 ml-1">{msg.username}</span>
-                )}
+                {!isMe && <span className="text-xs text-gray-500 mb-0.5 ml-1">{msg.username}</span>}
                 <div className={`px-3 py-2 text-sm break-words rounded-2xl ${
-                  isMe
-                    ? 'bg-brand-600 text-white rounded-br-sm'
-                    : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+                  isMe ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-100 rounded-bl-sm'
                 }`}>
                   {msg.content}
                 </div>
