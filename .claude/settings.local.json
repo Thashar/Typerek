@@ -13,7 +13,8 @@
       "Bash(curl -s https://typerek-ngk.vercel.app/api/debug/db)",
       "Bash(curl -s https://typerek-ngk.vercel.app/api/health)",
       "WebFetch(domain:typerek-ngk.vercel.app)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm install *)"
     ]
   }
 }

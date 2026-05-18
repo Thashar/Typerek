@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:typetek-ngk.vercel.app)",
+      "WebFetch(domain:typerek-ngk.pl)",
+      "Bash(npx vercel *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
