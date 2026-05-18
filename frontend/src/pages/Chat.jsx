@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { useAuth } from '../context/AuthContext'
@@ -22,9 +22,16 @@ export default function Chat() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const bottomRef = useRef(null)
+  const separatorRef = useRef(null)
   const inputRef = useRef(null)
   const [text, setText] = useState('')
   const prevCountRef = useRef(0)
+  const hasScrolledInitially = useRef(false)
+
+  // Zapamiętaj lastReadId przy wejściu — zanim oznaczymy wiadomości jako przeczytane
+  const initialLastReadId = useRef(
+    parseInt(localStorage.getItem('chat_last_read') || '0')
+  )
 
   const { data: messages = [] } = useQuery({
     queryKey: ['chat-messages'],
@@ -41,6 +48,19 @@ export default function Chat() {
   }, [messages])
 
   useEffect(() => {
+    if (messages.length === 0) return
+
+    if (!hasScrolledInitially.current) {
+      hasScrolledInitially.current = true
+      prevCountRef.current = messages.length
+      if (separatorRef.current) {
+        separatorRef.current.scrollIntoView({ behavior: 'instant' })
+      } else {
+        bottomRef.current?.scrollIntoView({ behavior: 'instant' })
+      }
+      return
+    }
+
     if (messages.length !== prevCountRef.current) {
       prevCountRef.current = messages.length
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -71,31 +91,43 @@ export default function Chat() {
     }
   }
 
+  // Separator pojawia się tylko gdy user był już na czacie (lastReadId > 0)
+  const firstUnreadIdx = initialLastReadId.current > 0
+    ? messages.findIndex(m => m.id > initialLastReadId.current && m.user_id !== user?.id)
+    : -1
+
   return (
-    <div
-      className="max-w-2xl mx-auto px-4 flex flex-col h-full"
-    >
+    <div className="max-w-2xl mx-auto px-4 flex flex-col h-full">
       <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3">
         {messages.length === 0 && (
           <p className="text-gray-500 text-center pt-12 text-sm">Brak wiadomości. Napisz coś!</p>
         )}
-        {messages.map((msg) => {
+        {messages.map((msg, idx) => {
           const isMe = msg.user_id === user?.id
           return (
-            <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-              <Avatar username={msg.username} avatar={msg.avatar} />
-              <div className={`flex flex-col max-w-[72%] ${isMe ? 'items-end' : 'items-start'}`}>
-                {!isMe && <span className="text-xs text-gray-500 mb-0.5 ml-1">{msg.username}</span>}
-                <div className={`px-3 py-2 text-sm break-words rounded-2xl ${
-                  isMe ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-100 rounded-bl-sm'
-                }`}>
-                  {msg.content}
+            <React.Fragment key={msg.id}>
+              {idx === firstUnreadIdx && (
+                <div ref={separatorRef} className="flex items-center gap-3 py-1">
+                  <div className="flex-1 h-px bg-brand-500/40" />
+                  <span className="text-xs text-brand-400 font-semibold shrink-0 px-1">Nowe wiadomości</span>
+                  <div className="flex-1 h-px bg-brand-500/40" />
                 </div>
-                <span className="text-xs text-gray-600 mt-0.5 mx-1">
-                  {formatInTimeZone(new Date(msg.created_at + 'Z'), 'Europe/Warsaw', 'HH:mm')}
-                </span>
+              )}
+              <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                <Avatar username={msg.username} avatar={msg.avatar} />
+                <div className={`flex flex-col max-w-[72%] ${isMe ? 'items-end' : 'items-start'}`}>
+                  {!isMe && <span className="text-xs text-gray-500 mb-0.5 ml-1">{msg.username}</span>}
+                  <div className={`px-3 py-2 text-sm break-words rounded-2xl ${
+                    isMe ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+                  }`}>
+                    {msg.content}
+                  </div>
+                  <span className="text-xs text-gray-600 mt-0.5 mx-1">
+                    {formatInTimeZone(new Date(msg.created_at + 'Z'), 'Europe/Warsaw', 'HH:mm')}
+                  </span>
+                </div>
               </div>
-            </div>
+            </React.Fragment>
           )
         })}
         <div ref={bottomRef} />
