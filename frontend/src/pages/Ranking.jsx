@@ -51,6 +51,7 @@ export default function Ranking() {
           const rankChange = hasLive ? (entry.rank_change ?? 0) : 0
           const movingUp = rankChange > 0
           const movingDown = rankChange < 0
+          const hasLivePoints = hasLive && (liveMap[entry.user_id]?.projected_extra_points ?? 0) > 0
 
           const ringClass = movingUp
             ? 'ring-2 ring-green-500'
@@ -92,7 +93,7 @@ export default function Ranking() {
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className="font-bold text-brand-400 text-lg leading-tight">{entry.total_points} pkt</div>
+                  <div className={`font-bold text-lg leading-tight ${hasLivePoints ? 'text-green-400' : 'text-brand-400'}`}>{entry.total_points} pkt</div>
                 </div>
               </button>
             </div>
