@@ -107,6 +107,8 @@ export default function Admin() {
   const [syncMsg, setSyncMsg] = useState(null)
   const [settingsMsg, setSettingsMsg] = useState(null)
   const [clearChatConfirm, setClearChatConfirm] = useState(false)
+  const [unverifyConfirm, setUnverifyConfirm] = useState(false)
+  const [resetPointsConfirm, setResetPointsConfirm] = useState(false)
 
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
@@ -150,6 +152,16 @@ const clearChat = useMutation({
       queryClient.invalidateQueries({ queryKey: ['chat-messages'] })
       setClearChatConfirm(false)
     },
+  })
+
+  const unverifyAll = useMutation({
+    mutationFn: () => api.post('/admin/unverify-all-users').then(r => r.data),
+    onSuccess: () => { setUnverifyConfirm(false); refreshUsers() },
+  })
+
+  const resetPoints = useMutation({
+    mutationFn: () => api.post('/admin/reset-all-points').then(r => r.data),
+    onSuccess: () => { setResetPointsConfirm(false); queryClient.invalidateQueries({ queryKey: ['admin-users'] }); queryClient.invalidateQueries({ queryKey: ['ranking'] }) },
   })
 
   const syncAll = useMutation({
@@ -263,6 +275,62 @@ const clearChat = useMutation({
             className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
           >
             🗑 Wyczyść czat
+          </button>
+        )}
+      </div>
+
+      <div className="bg-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-white">Weryfikacja</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Usuwa weryfikację wszystkim użytkownikom (oprócz admina)</p>
+        </div>
+        {unverifyConfirm ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => unverifyAll.mutate()}
+              disabled={unverifyAll.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
+            >
+              {unverifyAll.isPending ? '...' : 'Tak, usuń'}
+            </button>
+            <button onClick={() => setUnverifyConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
+              Anuluj
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setUnverifyConfirm(true)}
+            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
+          >
+            Odweryf. wszystkich
+          </button>
+        )}
+      </div>
+
+      <div className="bg-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-white">Reset punktów</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Zeruje punkty wszystkich użytkowników i typów</p>
+        </div>
+        {resetPointsConfirm ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => resetPoints.mutate()}
+              disabled={resetPoints.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
+            >
+              {resetPoints.isPending ? '...' : 'Tak, zeruj'}
+            </button>
+            <button onClick={() => setResetPointsConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
+              Anuluj
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setResetPointsConfirm(true)}
+            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
+          >
+            Zeruj punkty
           </button>
         )}
       </div>

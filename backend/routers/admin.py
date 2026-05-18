@@ -106,7 +106,30 @@ def verify_all_users(
     from sqlalchemy import text
     result = db.execute(text("UPDATE users SET is_ranked = TRUE WHERE is_ranked IS NOT TRUE"))
     db.commit()
-    return {"verified": result.rowcount}
+    return {"count": result.rowcount}
+
+
+@router.post("/unverify-all-users")
+def unverify_all_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    from sqlalchemy import text
+    result = db.execute(text("UPDATE users SET is_ranked = FALSE WHERE is_ranked IS TRUE AND id != :aid"), {"aid": current_user.id})
+    db.commit()
+    return {"count": result.rowcount}
+
+
+@router.post("/reset-all-points")
+def reset_all_points(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    from sqlalchemy import text
+    db.execute(text("UPDATE predictions SET points = NULL"))
+    db.execute(text("UPDATE users SET total_points = 0"))
+    db.commit()
+    return {"detail": "ok"}
 
 
 @router.delete("/chat", status_code=204)
