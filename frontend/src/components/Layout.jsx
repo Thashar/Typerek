@@ -75,11 +75,11 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 min-h-0 overflow-y-auto">
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-40">
+      <nav className="shrink-0 bg-gray-900 border-t border-gray-800 z-40">
         <div className="max-w-2xl mx-auto flex">
           {nav.map(({ to, label, chatBadge }) => (
             <NavLink

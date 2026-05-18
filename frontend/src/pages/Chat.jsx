@@ -73,8 +73,7 @@ export default function Chat() {
 
   return (
     <div
-      className="max-w-2xl mx-auto px-4 flex flex-col"
-      style={{ height: 'calc(100svh - 8.5rem)' }}
+      className="max-w-2xl mx-auto px-4 flex flex-col h-full"
     >
       <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3">
         {messages.length === 0 && (
