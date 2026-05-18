@@ -16,9 +16,24 @@ export default function Ranking() {
     staleTime: 0,
   })
 
-  const entries = data?.entries ?? []
+  const rawEntries = data?.entries ?? []
   const hasLive = liveData?.has_live ?? false
   const liveMap = Object.fromEntries((liveData?.changes ?? []).map(c => [c.user_id, c]))
+
+  // Podczas live: przelicz punkty z extra i posortuj od nowa
+  const entries = hasLive
+    ? [...rawEntries]
+        .map(e => ({
+          ...e,
+          total_points: e.total_points + (liveMap[e.user_id]?.projected_extra_points ?? 0),
+        }))
+        .sort((a, b) => b.total_points - a.total_points)
+        .map((e, idx) => ({
+          ...e,
+          rank: idx + 1,
+          rank_change: (rawEntries.find(o => o.user_id === e.user_id)?.rank ?? idx + 1) - (idx + 1),
+        }))
+    : rawEntries
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -33,10 +48,9 @@ export default function Ranking() {
       <div className="space-y-2">
         {entries.map((entry) => {
           const isMe = user?.id === entry.user_id
-          const live = hasLive ? liveMap[entry.user_id] : null
-          const movingUp = hasLive && live?.rank_change > 0
-          const movingDown = hasLive && live?.rank_change < 0
-          const extraPts = live?.projected_extra_points ?? 0
+          const rankChange = hasLive ? (entry.rank_change ?? 0) : 0
+          const movingUp = rankChange > 0
+          const movingDown = rankChange < 0
 
           const ringClass = movingUp
             ? 'ring-2 ring-green-500'
@@ -67,7 +81,7 @@ export default function Ranking() {
                     </span>
                     {hasLive && (movingUp || movingDown) && (
                       <span className={`ml-2 text-xs font-bold ${movingUp ? 'text-green-400' : 'text-red-400'}`}>
-                        {movingUp ? '▲' : '▼'}{Math.abs(live.rank_change)}
+                        {movingUp ? '▲' : '▼'}{Math.abs(rankChange)}
                       </span>
                     )}
                   </div>
@@ -79,9 +93,6 @@ export default function Ranking() {
 
                 <div className="text-right shrink-0">
                   <div className="font-bold text-brand-400 text-lg leading-tight">{entry.total_points} pkt</div>
-                  {hasLive && extraPts > 0 && (
-                    <div className="text-xs text-green-400 leading-tight">+{extraPts} pkt</div>
-                  )}
                 </div>
               </button>
             </div>
