@@ -6,6 +6,7 @@ from models.user import User
 from models.match import Match, MatchStatus
 from models.prediction import Prediction
 from models.invite_code import InviteCode
+from models.chat import ChatMessage
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -106,6 +107,15 @@ def verify_all_users(
     result = db.execute(text("UPDATE users SET is_ranked = TRUE WHERE is_ranked IS NOT TRUE"))
     db.commit()
     return {"verified": result.rowcount}
+
+
+@router.delete("/chat", status_code=204)
+def clear_chat(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    db.query(ChatMessage).delete()
+    db.commit()
 
 
 @router.post("/sync-all")

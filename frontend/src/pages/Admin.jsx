@@ -106,6 +106,7 @@ export default function Admin() {
   const queryClient = useQueryClient()
   const [syncMsg, setSyncMsg] = useState(null)
   const [settingsMsg, setSettingsMsg] = useState(null)
+  const [clearChatConfirm, setClearChatConfirm] = useState(false)
 
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
@@ -143,7 +144,15 @@ export default function Admin() {
     queryFn: () => api.get('/admin/users').then(r => r.data),
   })
 
-const syncAll = useMutation({
+const clearChat = useMutation({
+    mutationFn: () => api.delete('/admin/chat'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] })
+      setClearChatConfirm(false)
+    },
+  })
+
+  const syncAll = useMutation({
     mutationFn: () => api.post('/admin/sync-all').then(r => r.data),
     onSuccess: (data) => {
       const lines = Object.entries(data.results).map(([k, v]) => `${k}: ${v}`).join(', ')
@@ -225,6 +234,37 @@ const syncAll = useMutation({
           </button>
         </div>
         {settingsMsg && <p className="text-sm text-green-400">{settingsMsg}</p>}
+      </div>
+
+      <div className="bg-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-white">Czat</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Usuwa wszystkie wiadomości z czatu</p>
+        </div>
+        {clearChatConfirm ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => clearChat.mutate()}
+              disabled={clearChat.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
+            >
+              {clearChat.isPending ? '...' : 'Tak, wyczyść'}
+            </button>
+            <button
+              onClick={() => setClearChatConfirm(false)}
+              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition"
+            >
+              Anuluj
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setClearChatConfirm(true)}
+            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
+          >
+            🗑 Wyczyść czat
+          </button>
+        )}
       </div>
 
       <div className="bg-gray-800 rounded-xl overflow-hidden">
