@@ -126,8 +126,8 @@ function groupByDayAndLeague(predictions) {
 }
 
 export function GroupedPredHistory({ predictions }) {
-  const [collapsed, setCollapsed] = useState({})
-  const toggle = (day) => setCollapsed(c => ({ ...c, [day]: !c[day] }))
+  const [expanded, setExpanded] = useState({})
+  const toggle = (day) => setExpanded(e => ({ ...e, [day]: !e[day] }))
   const groups = groupByDayAndLeague(predictions)
 
   if (predictions.length === 0) {
@@ -143,9 +143,9 @@ export function GroupedPredHistory({ predictions }) {
             className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-800 text-sm font-semibold text-gray-200 hover:bg-gray-750 transition"
           >
             <span>{format(parseISO(day), 'd MMMM yyyy', { locale: pl })}</span>
-            <span className="text-gray-400 text-xs">{collapsed[day] ? '▸' : '▾'}</span>
+            <span className="text-gray-400 text-xs">{expanded[day] ? '▾' : '▸'}</span>
           </button>
-          {!collapsed[day] && (
+          {expanded[day] && (
             <div className="space-y-3 mt-1">
               {Object.entries(leagues).map(([leagueName, preds]) => (
                 <div key={leagueName}>
