@@ -71,7 +71,7 @@ function ChangeUsernameForm({ onUpdated }) {
           required minLength={3} maxLength={50}
           autoFocus
         />
-        <p className="text-xs text-gray-600 mt-0.5">Tylko litery (a–z, A–Z), cyfry i _</p>
+        <p className="text-[10px] text-gray-600 mt-0.5">Tylko litery (a–z, A–Z), cyfry i _</p>
       </div>
       <div className="flex gap-2 pt-1">
         <button
