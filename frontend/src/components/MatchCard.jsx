@@ -75,7 +75,11 @@ export default function MatchCard({ match, prediction }) {
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>{match.league.name} · {match.league.country}</span>
         <span className={match.status === 'live' ? 'text-red-500 font-bold animate-pulse' : ''}>
-          {STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
+          {match.status === 'live'
+            ? match.status_short === 'HT'
+              ? 'Przerwa'
+              : `${match.status_short ?? 'LIVE'} ${match.minute != null ? match.minute + "'" : ''}`
+            : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
         </span>
       </div>
 
@@ -89,7 +93,12 @@ export default function MatchCard({ match, prediction }) {
           {match.status === 'finished' ? (
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : match.status === 'live' ? (
-            <span className="text-xl text-red-500">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
+            <div className="flex flex-col items-center leading-none gap-0.5">
+              <span className="text-[10px] font-bold text-red-500 animate-pulse">
+                {match.status_short === 'HT' ? 'HT' : match.minute != null ? `${match.minute}'` : '•'}
+              </span>
+              <span className="text-xl text-red-500">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
+            </div>
           ) : (
             <span className="text-gray-500">vs</span>
           )}
