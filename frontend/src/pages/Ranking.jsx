@@ -89,7 +89,7 @@ export default function Ranking() {
                 </div>
 
                 <div className="hidden sm:block text-right text-sm text-gray-400 shrink-0">
-                  <span>{entry.exact_hits}⭐ {entry.outcome_hits}✓</span>
+                  <span>{entry.exact_hits}⭐ {entry.outcome_hits}✅</span>
                 </div>
 
                 <div className="text-right shrink-0">

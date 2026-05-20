@@ -7,6 +7,8 @@ from models.prediction import Prediction, POINTS_EXACT, POINTS_OUTCOME
 
 
 def get_global_ranking(db: Session) -> list[dict]:
+    from models.settings import GameSettings
+    gs = GameSettings.get(db)
     rows = db.execute(text("""
         SELECT u.id AS user_id, u.username, u.avatar,
                COALESCE(SUM(p.points), 0) AS total_points,
@@ -18,7 +20,7 @@ def get_global_ranking(db: Session) -> list[dict]:
         WHERE u.is_active = TRUE AND u.is_ranked = TRUE
         GROUP BY u.id, u.username, u.avatar
         ORDER BY total_points DESC
-    """), {"exact": POINTS_EXACT, "outcome": POINTS_OUTCOME}).fetchall()
+    """), {"exact": gs.points_exact, "outcome": gs.points_outcome}).fetchall()
 
     return [
         {
