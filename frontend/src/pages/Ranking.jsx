@@ -55,6 +55,8 @@ export default function Ranking() {
 
           const ringClass = movingUp
             ? 'ring-2 ring-green-500'
+            : movingDown
+            ? 'ring-2 ring-red-500'
             : isMe
             ? 'ring-2 ring-brand-500'
             : ''
