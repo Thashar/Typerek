@@ -10,19 +10,30 @@ from schemas.match import MatchResponse, MatchListResponse
 router = APIRouter(prefix="/api/matches", tags=["matches"])
 
 
+def _wc_league_id(db: Session) -> int | None:
+    from models.settings import GameSettings
+    from models.league import League
+    if not GameSettings.get(db).world_cup_only:
+        return None
+    wc = db.query(League.id).filter(League.api_id == 2000).scalar()
+    return wc
+
+
 @router.get("/leagues")
 def get_match_leagues(db: Session = Depends(get_db)):
     from models.league import League
     today = date.today()
-    leagues = (
+    q = (
         db.query(League)
         .join(Match, Match.league_id == League.id)
         .filter(Match.kickoff >= today)
         .distinct()
         .order_by(League.name)
-        .all()
     )
-    return [{"id": l.id, "name": l.name, "country": translate_country(l.country), "logo_url": l.logo_url} for l in leagues]
+    wc_id = _wc_league_id(db)
+    if wc_id:
+        q = q.filter(League.id == wc_id)
+    return [{"id": l.id, "name": l.name, "country": translate_country(l.country), "logo_url": l.logo_url} for l in q.all()]
 
 
 @router.get("/dates")
@@ -36,8 +47,9 @@ def get_match_dates(
         db.query(func.date(Match.kickoff))
         .filter(Match.kickoff >= from_date, Match.kickoff <= to_date + timedelta(days=1))
     )
-    if league_id:
-        q = q.filter(Match.league_id == league_id)
+    effective_league = league_id or _wc_league_id(db)
+    if effective_league:
+        q = q.filter(Match.league_id == effective_league)
     results = q.distinct().order_by(func.date(Match.kickoff)).all()
     return [str(r[0]) for r in results if r[0]]
 
@@ -94,8 +106,9 @@ def get_matches(
     q = q.filter(Match.kickoff >= from_date, Match.kickoff < to_date + timedelta(days=1))
     if status:
         q = q.filter(Match.status == status)
-    if league_id:
-        q = q.filter(Match.league_id == league_id)
+    effective_league = league_id or _wc_league_id(db)
+    if effective_league:
+        q = q.filter(Match.league_id == effective_league)
     q = q.order_by(Match.kickoff)
     matches = q.all()
     return {"matches": matches, "total": len(matches)}
@@ -116,13 +129,15 @@ def get_today(db: Session = Depends(get_db)):
 
 @router.get("/live", response_model=MatchListResponse)
 def get_live(db: Session = Depends(get_db)):
-    matches = (
+    q = (
         db.query(Match)
         .options(joinedload(Match.league))
         .filter(Match.status == MatchStatus.LIVE)
-        .order_by(Match.kickoff)
-        .all()
     )
+    wc_id = _wc_league_id(db)
+    if wc_id:
+        q = q.filter(Match.league_id == wc_id)
+    matches = q.order_by(Match.kickoff).all()
     return {"matches": matches, "total": len(matches)}
 
 

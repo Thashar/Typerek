@@ -57,6 +57,7 @@ try:
         _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_matches_league_id ON matches (league_id)"))
         _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_prediction_user_match ON predictions (user_id, match_id)"))
         _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_chat_messages_created_at ON chat_messages (created_at)"))
+        _conn.execute(_text("ALTER TABLE game_settings ADD COLUMN IF NOT EXISTS world_cup_only BOOLEAN NOT NULL DEFAULT FALSE"))
         _conn.commit()
 except Exception:
     pass

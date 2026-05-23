@@ -8,8 +8,24 @@ import { getSettings, updateSettings } from '../api/settings'
 function StatCard({ label, value }) {
   return (
     <div className="bg-gray-800 rounded-xl p-4 text-center">
-      <div className="text-2xl font-bold text-brand-400">{value ?? '—'}</div>
+      <div className="text-2xl font-bold text-brand-500">{value ?? '—'}</div>
       <div className="text-xs text-gray-400 mt-1">{label}</div>
+    </div>
+  )
+}
+
+function Section({ title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bg-gray-800 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-750 transition"
+      >
+        <span className="font-semibold text-white text-sm">{title}</span>
+        <span className="text-gray-400 text-xs ml-2">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && <div className="px-4 pb-4 pt-1 space-y-3 border-t border-gray-700">{children}</div>}
     </div>
   )
 }
@@ -42,13 +58,13 @@ function UserRow({ u, currentUserId, onChanged }) {
   const canDelete = !u.is_admin && u.id !== currentUserId
 
   return (
-    <div className="px-4 py-3 flex items-center justify-between gap-3">
+    <div className="py-3 flex items-center justify-between gap-3">
       <div className="flex-1 min-w-0">
         {!u.is_admin
-          ? <Link to={`/admin/users/${u.id}`} className="font-medium text-white text-sm hover:text-brand-400 transition">{u.username}</Link>
+          ? <Link to={`/admin/users/${u.id}`} className="font-medium text-white text-sm hover:text-brand-500 transition">{u.username}</Link>
           : <span className="font-medium text-white text-sm">{u.username}</span>
         }
-        {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-400 px-1.5 py-0.5 rounded">admin</span>}
+        {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-500 px-1.5 py-0.5 rounded">admin</span>}
         {u.is_ranked
           ? <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">zweryfikowany</span>
           : <span className="ml-1 text-xs bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">niezweryfikowany</span>
@@ -57,7 +73,7 @@ function UserRow({ u, currentUserId, onChanged }) {
         <div className="text-xs text-gray-500 mt-0.5 truncate">{u.email}</div>
       </div>
       <div className="text-right shrink-0">
-        <div className="text-brand-400 font-bold text-sm">{u.total_points} pkt</div>
+        <div className="text-brand-500 font-bold text-sm">{u.total_points} pkt</div>
         <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -73,11 +89,8 @@ function UserRow({ u, currentUserId, onChanged }) {
         {canDelete && (
           confirm ? (
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => deleteMut.mutate()}
-                disabled={deleteMut.isPending}
-                className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition"
-              >
+              <button onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}
+                className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition">
                 {deleteMut.isPending ? '...' : 'Tak'}
               </button>
               <button onClick={() => setConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition">
@@ -85,11 +98,8 @@ function UserRow({ u, currentUserId, onChanged }) {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => { setErr(''); setConfirm(true) }}
-              className="text-gray-600 hover:text-red-400 transition text-lg leading-none"
-              title="Usuń użytkownika"
-            >
+            <button onClick={() => { setErr(''); setConfirm(true) }}
+              className="text-gray-600 hover:text-red-400 transition text-lg leading-none" title="Usuń użytkownika">
               ×
             </button>
           )
@@ -121,11 +131,13 @@ export default function Admin() {
   })
   const [pointsExact, setPointsExact] = useState('')
   const [pointsOutcome, setPointsOutcome] = useState('')
+  const [worldCupOnly, setWorldCupOnly] = useState(false)
 
   useEffect(() => {
     if (gameSettings) {
       setPointsExact(String(gameSettings.points_exact))
       setPointsOutcome(String(gameSettings.points_outcome))
+      setWorldCupOnly(gameSettings.world_cup_only ?? false)
     }
   }, [gameSettings])
 
@@ -133,10 +145,14 @@ export default function Admin() {
     mutationFn: () => updateSettings({
       points_exact: parseInt(pointsExact),
       points_outcome: parseInt(pointsOutcome),
+      world_cup_only: worldCupOnly,
     }),
     onSuccess: (data) => {
-      setSettingsMsg(`✓ Zapisano: dokładny=${data.points_exact} pkt, wynik=${data.points_outcome} pkt`)
+      setSettingsMsg(`✓ Zapisano`)
       queryClient.invalidateQueries({ queryKey: ['game-settings'] })
+      queryClient.invalidateQueries({ queryKey: ['match-leagues'] })
+      queryClient.invalidateQueries({ queryKey: ['matches'] })
+      queryClient.invalidateQueries({ queryKey: ['match-dates'] })
     },
     onError: () => setSettingsMsg('✗ Błąd zapisu'),
   })
@@ -146,12 +162,9 @@ export default function Admin() {
     queryFn: () => api.get('/admin/users').then(r => r.data),
   })
 
-const clearChat = useMutation({
+  const clearChat = useMutation({
     mutationFn: () => api.delete('/admin/chat'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages'] })
-      setClearChatConfirm(false)
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['chat-messages'] }); setClearChatConfirm(false) },
   })
 
   const unverifyAll = useMutation({
@@ -161,7 +174,11 @@ const clearChat = useMutation({
 
   const resetPoints = useMutation({
     mutationFn: () => api.post('/admin/reset-all-points').then(r => r.data),
-    onSuccess: () => { setResetPointsConfirm(false); queryClient.invalidateQueries({ queryKey: ['admin-users'] }); queryClient.invalidateQueries({ queryKey: ['ranking'] }) },
+    onSuccess: () => {
+      setResetPointsConfirm(false)
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['ranking'] })
+    },
   })
 
   const syncAll = useMutation({
@@ -176,10 +193,7 @@ const clearChat = useMutation({
     onError: () => setSyncMsg('✗ Błąd synchronizacji'),
   })
 
-  if (!user?.is_admin) {
-    navigate('/')
-    return null
-  }
+  if (!user?.is_admin) { navigate('/'); return null }
 
   const refreshUsers = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] })
@@ -187,9 +201,10 @@ const clearChat = useMutation({
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
       <h1 className="text-xl font-bold text-white">Panel admina</h1>
 
+      {/* Statystyki — zawsze widoczne */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Użytkownicy" value={stats?.users} />
         <StatCard label="Mecze" value={stats?.matches} />
@@ -197,8 +212,40 @@ const clearChat = useMutation({
         <StatCard label="Typy" value={stats?.predictions} />
       </div>
 
-      <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-        <h2 className="font-semibold text-white">Synchronizacja danych</h2>
+      {/* Tryb Mundial */}
+      <Section title="🌍 Tryb tylko Mundial">
+        <p className="text-xs text-gray-400">
+          Gdy włączony, w typerze widoczne są wyłącznie mecze Mistrzostw Świata. Pozostałe ligi są ukryte.
+        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm font-medium text-white">Tryb tylko Mundial</span>
+            {worldCupOnly && <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">aktywny</span>}
+          </div>
+          <button
+            onClick={() => {
+              const newVal = !worldCupOnly
+              setWorldCupOnly(newVal)
+              updateSettings({
+                points_exact: parseInt(pointsExact) || gameSettings?.points_exact,
+                points_outcome: parseInt(pointsOutcome) || gameSettings?.points_outcome,
+                world_cup_only: newVal,
+              }).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['game-settings'] })
+                queryClient.invalidateQueries({ queryKey: ['match-leagues'] })
+                queryClient.invalidateQueries({ queryKey: ['matches'] })
+                queryClient.invalidateQueries({ queryKey: ['match-dates'] })
+              })
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${worldCupOnly ? 'bg-green-500' : 'bg-gray-600'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${worldCupOnly ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+      </Section>
+
+      {/* Synchronizacja */}
+      <Section title="🔄 Synchronizacja danych">
         <p className="text-xs text-gray-400">Zaciąga mecze wszystkich lig do końca roku: {COMPETITIONS.map(c => c.code).join(', ')}</p>
         <button
           onClick={() => { setSyncMsg(null); syncAll.mutate() }}
@@ -213,29 +260,24 @@ const clearChat = useMutation({
           </p>
         )}
         {syncMsg && <p className="text-sm text-green-400">{syncMsg}</p>}
-      </div>
+      </Section>
 
-      <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-        <h2 className="font-semibold text-white">Punktacja</h2>
-        <p className="text-xs text-gray-400">Aktualne: dobry typ ✅ = <span className="text-brand-400 font-bold">{gameSettings?.points_outcome ?? 1} pkt</span>, dokładny wynik ⭐ = <span className="text-brand-400 font-bold">{gameSettings?.points_exact ?? 3} pkt</span></p>
+      {/* Punktacja */}
+      <Section title="⭐ Punktacja">
+        <p className="text-xs text-gray-400">
+          Aktualne: dobry typ ✅ = <span className="text-brand-500 font-bold">{gameSettings?.points_outcome ?? 2} pkt</span>,
+          dokładny wynik ⭐ = <span className="text-brand-500 font-bold">{gameSettings?.points_exact ?? 5} pkt</span>
+        </p>
         <div className="flex items-center gap-3 flex-wrap">
           <div>
             <label className="block text-xs text-gray-400 mb-1">Za dobry typ ✅</label>
-            <input
-              type="number" min="0" max="100"
-              value={pointsOutcome}
-              onChange={e => setPointsOutcome(e.target.value)}
-              className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
-            />
+            <input type="number" min="0" max="100" value={pointsOutcome} onChange={e => setPointsOutcome(e.target.value)}
+              className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500" />
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Za dokładny wynik ⭐</label>
-            <input
-              type="number" min="1" max="100"
-              value={pointsExact}
-              onChange={e => setPointsExact(e.target.value)}
-              className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
-            />
+            <input type="number" min="1" max="100" value={pointsExact} onChange={e => setPointsExact(e.target.value)}
+              className="w-20 text-center bg-gray-700 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500" />
           </div>
           <button
             onClick={() => { setSettingsMsg(null); saveSettings.mutate() }}
@@ -246,105 +288,82 @@ const clearChat = useMutation({
           </button>
         </div>
         {settingsMsg && <p className="text-sm text-green-400">{settingsMsg}</p>}
-      </div>
+      </Section>
 
-      <div className="bg-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-semibold text-white">Czat</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Usuwa wszystkie wiadomości z czatu</p>
-        </div>
+      {/* Czat */}
+      <Section title="💬 Czat">
+        <p className="text-xs text-gray-400">Usuwa wszystkie wiadomości z czatu</p>
         {clearChatConfirm ? (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => clearChat.mutate()}
-              disabled={clearChat.isPending}
-              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
-            >
+          <div className="flex items-center gap-2">
+            <button onClick={() => clearChat.mutate()} disabled={clearChat.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition">
               {clearChat.isPending ? '...' : 'Tak, wyczyść'}
             </button>
-            <button
-              onClick={() => setClearChatConfirm(false)}
-              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition"
-            >
+            <button onClick={() => setClearChatConfirm(false)}
+              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
               Anuluj
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setClearChatConfirm(true)}
-            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
-          >
+          <button onClick={() => setClearChatConfirm(true)}
+            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
             🗑 Wyczyść czat
           </button>
         )}
-      </div>
+      </Section>
 
-      <div className="bg-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-semibold text-white">Weryfikacja</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Usuwa weryfikację wszystkim użytkownikom (oprócz admina)</p>
-        </div>
+      {/* Weryfikacja */}
+      <Section title="✅ Weryfikacja">
+        <p className="text-xs text-gray-400">Usuwa weryfikację wszystkim użytkownikom (oprócz admina)</p>
         {unverifyConfirm ? (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => unverifyAll.mutate()}
-              disabled={unverifyAll.isPending}
-              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
-            >
+          <div className="flex items-center gap-2">
+            <button onClick={() => unverifyAll.mutate()} disabled={unverifyAll.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition">
               {unverifyAll.isPending ? '...' : 'Tak, usuń'}
             </button>
-            <button onClick={() => setUnverifyConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
+            <button onClick={() => setUnverifyConfirm(false)}
+              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
               Anuluj
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setUnverifyConfirm(true)}
-            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
-          >
+          <button onClick={() => setUnverifyConfirm(true)}
+            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
             Odweryf. wszystkich
           </button>
         )}
-      </div>
+      </Section>
 
-      <div className="bg-gray-800 rounded-xl p-4 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-semibold text-white">Reset punktów</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Zeruje punkty wszystkich użytkowników i typów</p>
-        </div>
+      {/* Reset punktów */}
+      <Section title="🔁 Reset punktów">
+        <p className="text-xs text-gray-400">Zeruje punkty wszystkich typów</p>
         {resetPointsConfirm ? (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => resetPoints.mutate()}
-              disabled={resetPoints.isPending}
-              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
-            >
+          <div className="flex items-center gap-2">
+            <button onClick={() => resetPoints.mutate()} disabled={resetPoints.isPending}
+              className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition">
               {resetPoints.isPending ? '...' : 'Tak, zeruj'}
             </button>
-            <button onClick={() => setResetPointsConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
+            <button onClick={() => setResetPointsConfirm(false)}
+              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">
               Anuluj
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setResetPointsConfirm(true)}
-            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition shrink-0"
-          >
+          <button onClick={() => setResetPointsConfirm(true)}
+            className="text-xs bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
             Zeruj punkty
           </button>
         )}
-      </div>
+      </Section>
 
-      <div className="bg-gray-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-700">
-          <h2 className="font-semibold text-white">Użytkownicy ({users?.length ?? 0})</h2>
-        </div>
-        <div className="divide-y divide-gray-700">
+      {/* Użytkownicy */}
+      <Section title={`👥 Użytkownicy (${users?.length ?? 0})`}>
+        <div className="divide-y divide-gray-700 -mx-0">
           {users?.map(u => (
             <UserRow key={u.id} u={u} currentUserId={user?.id} onChanged={refreshUsers} />
           ))}
         </div>
-      </div>
+      </Section>
     </div>
   )
 }

@@ -12,6 +12,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 class SettingsUpdate(BaseModel):
     points_exact: int
     points_outcome: int
+    world_cup_only: bool = False
 
 
 @router.get("")
@@ -20,6 +21,7 @@ def get_settings(db: Session = Depends(get_db)):
     return {
         "points_exact": s.points_exact,
         "points_outcome": s.points_outcome,
+        "world_cup_only": s.world_cup_only,
         "last_synced_at": s.last_synced_at.isoformat() if s.last_synced_at else None,
     }
 
@@ -29,6 +31,7 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db), _: User
     s = GameSettings.get(db)
     s.points_exact = max(1, body.points_exact)
     s.points_outcome = max(0, body.points_outcome)
+    s.world_cup_only = body.world_cup_only
     db.commit()
     GameSettings.invalidate_cache()
-    return {"points_exact": s.points_exact, "points_outcome": s.points_outcome}
+    return {"points_exact": s.points_exact, "points_outcome": s.points_outcome, "world_cup_only": s.world_cup_only}
