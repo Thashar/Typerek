@@ -13,8 +13,13 @@ from models.private_league import PrivateLeague, PrivateLeagueMember
 from services import ranking as ranking_svc
 
 
-class LeagueNameRequest(BaseModel):
-    name: str
+import re
+
+class LeagueCodeRequest(BaseModel):
+    code: str
+
+class ChangeLeagueRequest(BaseModel):
+    league_id: int | None = None
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -245,41 +250,20 @@ def admin_get_leagues(
 
 @router.post("/leagues", status_code=201)
 def admin_create_league(
-    body: LeagueNameRequest,
+    body: LeagueCodeRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_admin_user),
 ):
-    league = PrivateLeague(
-        name=body.name,
-        invite_code=PrivateLeague.generate_invite_code(),
-        owner_id=current_user.id,
-    )
+    code = body.code.strip().upper()
+    if not re.match(r'^[A-Z0-9]{3,20}$', code):
+        raise HTTPException(status_code=400, detail="Kod może zawierać tylko litery i cyfry (3–20 znaków)")
+    if db.query(PrivateLeague).filter(PrivateLeague.invite_code == code).first():
+        raise HTTPException(status_code=400, detail="Liga z tym kodem już istnieje")
+    league = PrivateLeague(name=code, invite_code=code, owner_id=current_user.id)
     db.add(league)
     db.commit()
     db.refresh(league)
-    return {
-        "id": league.id,
-        "name": league.name,
-        "invite_code": league.invite_code,
-        "owner_id": league.owner_id,
-        "members_count": 0,
-        "created_at": league.created_at,
-    }
-
-
-@router.patch("/leagues/{league_id}")
-def admin_edit_league(
-    league_id: int,
-    body: LeagueNameRequest,
-    db: Session = Depends(get_db),
-    _: User = Depends(get_admin_user),
-):
-    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
-    if not league:
-        raise HTTPException(status_code=404, detail="Liga nie istnieje")
-    league.name = body.name
-    db.commit()
-    return {"id": league.id, "name": league.name}
+    return {"id": league.id, "name": league.invite_code, "invite_code": league.invite_code, "owner_id": league.owner_id, "members_count": 0, "created_at": league.created_at}
 
 
 @router.delete("/leagues/{league_id}", status_code=204)
@@ -306,3 +290,23 @@ def admin_league_ranking(
         raise HTTPException(status_code=404, detail="Liga nie istnieje")
     entries = ranking_svc.get_private_league_ranking(db, league_id)
     return {"entries": entries, "total": len(entries)}
+
+
+@router.put("/users/{user_id}/league")
+def change_user_league(
+    user_id: int,
+    body: ChangeLeagueRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
+    db.query(PrivateLeagueMember).filter(PrivateLeagueMember.user_id == user_id).delete()
+    if body.league_id:
+        league = db.query(PrivateLeague).filter(PrivateLeague.id == body.league_id).first()
+        if not league:
+            raise HTTPException(status_code=404, detail="Liga nie istnieje")
+        db.add(PrivateLeagueMember(league_id=body.league_id, user_id=user_id))
+    db.commit()
+    return {"user_id": user_id, "league_id": body.league_id}

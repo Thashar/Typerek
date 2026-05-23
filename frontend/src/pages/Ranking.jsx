@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { globalRanking, liveRankingChanges } from '../api/ranking'
 import { useAuth } from '../context/AuthContext'
 import PageLoader from '../components/PageLoader'
 import api from '../api/client'
@@ -11,99 +10,77 @@ const MEDAL = ['🥇', '🥈', '🥉']
 export default function Ranking() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [selectedLeague, setSelectedLeague] = useState(null)
+  const [selectedLeagueId, setSelectedLeagueId] = useState(null)
 
-  const { data: leagues } = useQuery({
+  const { data: myLeagues } = useQuery({
+    queryKey: ['my-leagues'],
+    queryFn: () => api.get('/leagues/me').then(r => r.data),
+  })
+
+  const { data: allLeagues } = useQuery({
     queryKey: ['admin-leagues'],
     queryFn: () => api.get('/admin/leagues').then(r => r.data),
     enabled: !!user?.is_admin,
   })
 
-  const { data, isLoading } = useQuery({ queryKey: ['ranking'], queryFn: globalRanking, enabled: !selectedLeague })
-  const { data: leagueData, isLoading: leagueLoading } = useQuery({
-    queryKey: ['admin-league-ranking', selectedLeague],
-    queryFn: () => api.get(`/admin/leagues/${selectedLeague}/ranking`).then(r => r.data),
-    enabled: !!selectedLeague,
-  })
-  const { data: liveData } = useQuery({
-    queryKey: ['ranking-live-changes'],
-    queryFn: liveRankingChanges,
-    refetchInterval: 30000,
-    refetchIntervalInBackground: false,
-    staleTime: 0,
-    enabled: !selectedLeague,
+  const myLeague = myLeagues?.[0]
+
+  useEffect(() => {
+    if (!selectedLeagueId && myLeague) setSelectedLeagueId(myLeague.id)
+  }, [myLeague])
+
+  const leagueId = selectedLeagueId ?? myLeague?.id
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['league-ranking', leagueId],
+    queryFn: () => {
+      if (user?.is_admin) return api.get(`/admin/leagues/${leagueId}/ranking`).then(r => r.data)
+      return api.get(`/leagues/${leagueId}/ranking`).then(r => r.data)
+    },
+    enabled: !!leagueId,
   })
 
-  const rawEntries = selectedLeague ? (leagueData?.entries ?? []) : (data?.entries ?? [])
-  const hasLive = !selectedLeague && (liveData?.has_live ?? false)
-  const isLoading2 = selectedLeague ? leagueLoading : isLoading
+  const entries = data?.entries ?? []
+  const tabs = user?.is_admin ? (allLeagues ?? []) : []
 
-  const entries = useMemo(() => {
-    if (!hasLive) return rawEntries
-    const liveMap = Object.fromEntries((liveData?.changes ?? []).map(c => [c.user_id, c]))
-    const rawRankMap = Object.fromEntries(rawEntries.map(e => [e.user_id, e.rank]))
-    return [...rawEntries]
-      .map(e => ({
-        ...e,
-        projected_extra_points: liveMap[e.user_id]?.projected_extra_points ?? 0,
-        total_points: e.total_points + (liveMap[e.user_id]?.projected_extra_points ?? 0),
-      }))
-      .sort((a, b) => b.total_points - a.total_points)
-      .map((e, idx) => ({
-        ...e,
-        rank: idx + 1,
-        rank_change: (rawRankMap[e.user_id] ?? idx + 1) - (idx + 1),
-      }))
-  }, [rawEntries, hasLive, liveData])
+  if (!leagueId && myLeagues !== undefined) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <h2 className="text-xl font-bold mb-4">Ranking</h2>
+        <div className="text-gray-500 text-center py-12">Nie jesteś przypisany do żadnej ligi</div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <h2 className="text-xl font-bold">Ranking</h2>
 
-      {user?.is_admin && leagues?.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          <button
-            onClick={() => setSelectedLeague(null)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${!selectedLeague ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-          >
-            Globalny
-          </button>
-          {leagues.map(l => (
+      {tabs.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {tabs.map(l => (
             <button
               key={l.id}
-              onClick={() => setSelectedLeague(l.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${selectedLeague === l.id ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+              onClick={() => setSelectedLeagueId(l.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-mono font-medium transition ${selectedLeagueId === l.id ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
             >
-              {l.name}
+              {l.invite_code}
             </button>
           ))}
         </div>
       )}
 
-      {isLoading2 && <PageLoader />}
+      {isLoading && <PageLoader />}
 
-      {!isLoading2 && entries.length === 0 && (
+      {!isLoading && entries.length === 0 && (
         <div className="text-gray-500 text-center py-12">Brak danych rankingowych</div>
       )}
 
       <div className="space-y-2">
         {entries.map((entry) => {
           const isMe = user?.id === entry.user_id
-          const rankChange = hasLive ? (entry.rank_change ?? 0) : 0
-          const movingUp = rankChange > 0
-          const movingDown = rankChange < 0
-          const hasLivePoints = hasLive && (entry.projected_extra_points ?? 0) > 0
-
-          const ringClass = movingUp
-            ? 'ring-2 ring-green-500'
-            : movingDown
-            ? 'ring-2 ring-red-500'
-            : isMe
-            ? 'ring-2 ring-brand-500'
-            : ''
-
           return (
-            <div key={entry.user_id} className={`bg-gray-900 rounded-xl overflow-hidden ${ringClass}`}>
+            <div key={entry.user_id} className={`bg-gray-900 rounded-xl overflow-hidden ${isMe ? 'ring-2 ring-brand-500' : ''}`}>
               <button
                 onClick={() => navigate(`/user/${entry.user_id}`)}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/50 transition text-left"
@@ -119,16 +96,9 @@ export default function Ranking() {
                       : <span className="text-xs font-bold text-gray-400">{entry.username.slice(0, 2).toUpperCase()}</span>
                     }
                   </div>
-                  <div className="min-w-0">
-                    <span className={`font-semibold ${isMe ? 'text-brand-400' : ''}`}>
-                      {entry.username} {isMe && <span className="text-xs text-gray-400">(Ty)</span>}
-                    </span>
-                    {hasLive && (movingUp || movingDown) && (
-                      <span className={`ml-2 text-xs font-bold ${movingUp ? 'text-green-400' : 'text-red-400'}`}>
-                        {movingUp ? '▲' : '▼'}{Math.abs(rankChange)}
-                      </span>
-                    )}
-                  </div>
+                  <span className={`font-semibold ${isMe ? 'text-brand-400' : ''}`}>
+                    {entry.username} {isMe && <span className="text-xs text-gray-400">(Ty)</span>}
+                  </span>
                 </div>
 
                 <div className="hidden sm:block text-right text-sm text-gray-400 shrink-0">
@@ -136,7 +106,7 @@ export default function Ranking() {
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className={`font-bold text-lg leading-tight ${hasLivePoints ? 'text-green-400' : 'text-brand-400'}`}>{entry.total_points} pkt</div>
+                  <div className="font-bold text-lg leading-tight text-brand-400">{entry.total_points} pkt</div>
                 </div>
               </button>
             </div>
