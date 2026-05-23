@@ -37,6 +37,7 @@ export default function Chat() {
     queryKey: ['chat-messages'],
     queryFn: getMessages,
     refetchInterval: 10000,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
 

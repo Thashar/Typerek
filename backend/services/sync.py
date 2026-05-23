@@ -178,7 +178,7 @@ def _get_or_create_league(db: Session, data: dict) -> League:
 
 def _calculate_points_for_finished(db: Session) -> None:
     from models.settings import GameSettings
-    gs = GameSettings.get(db)
+    points_exact, points_outcome = GameSettings.get_points(db)
 
     unscored = (
         db.query(Prediction)
@@ -194,4 +194,4 @@ def _calculate_points_for_finished(db: Session) -> None:
     )
     for pred in unscored:
         m = pred.match
-        pred.points = pred.calculate_points(m.home_score, m.away_score, gs.points_exact, gs.points_outcome)
+        pred.points = pred.calculate_points(m.home_score, m.away_score, points_exact, points_outcome)

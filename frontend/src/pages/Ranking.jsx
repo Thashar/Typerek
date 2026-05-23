@@ -14,6 +14,7 @@ export default function Ranking() {
     queryKey: ['ranking-live-changes'],
     queryFn: liveRankingChanges,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
 

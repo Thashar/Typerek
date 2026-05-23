@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -92,7 +92,7 @@ function ScoreInput({ value, onChange, disabled }) {
   )
 }
 
-export default function MatchCard({ match, prediction }) {
+function MatchCard({ match, prediction }) {
   const { user } = useAuth()
   const qc = useQueryClient()
   const isLocked = match.status !== 'scheduled'
@@ -204,3 +204,15 @@ export default function MatchCard({ match, prediction }) {
     </div>
   )
 }
+
+export default memo(MatchCard, (prev, next) =>
+  prev.match.id === next.match.id &&
+  prev.match.status === next.match.status &&
+  prev.match.home_score === next.match.home_score &&
+  prev.match.away_score === next.match.away_score &&
+  prev.match.status_short === next.match.status_short &&
+  prev.match.minute === next.match.minute &&
+  prev.prediction?.points === next.prediction?.points &&
+  prev.prediction?.predicted_home === next.prediction?.predicted_home &&
+  prev.prediction?.predicted_away === next.prediction?.predicted_away
+)
