@@ -50,6 +50,17 @@ try:
 except Exception:
     pass
 
+try:
+    from sqlalchemy import text as _text
+    with engine.connect() as _conn:
+        _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_matches_status ON matches (status)"))
+        _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_matches_league_id ON matches (league_id)"))
+        _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_prediction_user_match ON predictions (user_id, match_id)"))
+        _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_chat_messages_created_at ON chat_messages (created_at)"))
+        _conn.commit()
+except Exception:
+    pass
+
 
 @app.get("/api/health")
 def health():

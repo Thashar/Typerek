@@ -1,7 +1,6 @@
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
-from models.prediction import POINTS_EXACT, POINTS_OUTCOME
-from models.private_league import PrivateLeague, PrivateLeagueMember
+from models.private_league import PrivateLeague
 from models.user import User
 from models.prediction import Prediction, POINTS_EXACT, POINTS_OUTCOME
 
