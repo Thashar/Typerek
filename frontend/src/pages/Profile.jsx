@@ -7,6 +7,9 @@ import { useAuth } from '../context/AuthContext'
 import { GroupedPredHistory } from '../components/PredHistory'
 import api from '../api/client'
 
+const POINTS_EXACT_DEFAULT = 5
+const POINTS_OUTCOME_DEFAULT = 2
+
 function resizeToBase64(file) {
   return new Promise((resolve) => {
     const img = new Image()
@@ -155,16 +158,35 @@ function Avatar({ user, onUpdated }) {
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
   const { data: preds } = useQuery({ queryKey: ['predictions'], queryFn: myPredictions })
   const { data: settings } = useQuery({ queryKey: ['game-settings'], queryFn: getSettings })
 
   const predictions = preds ?? []
   const scored = predictions.filter(p => p.points != null)
   const totalPts = scored.reduce((s, p) => s + p.points, 0)
-  const exactHits = scored.filter(p => p.points === (settings?.points_exact ?? 3)).length
-  const outcomeHits = scored.filter(p => p.points === (settings?.points_outcome ?? 1)).length
+  const pointsExact = settings?.points_exact ?? POINTS_EXACT_DEFAULT
+  const pointsOutcome = settings?.points_outcome ?? POINTS_OUTCOME_DEFAULT
+  const exactHits = scored.filter(p => p.points === pointsExact).length
+  const outcomeHits = scored.filter(p => p.points === pointsOutcome).length
 
   const handleLogout = () => { logout(); navigate('/login') }
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('')
+    setDeleteLoading(true)
+    try {
+      await api.delete('/users/me')
+      logout()
+      navigate('/login')
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail || 'Błąd usuwania konta')
+      setDeleteLoading(false)
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -205,14 +227,47 @@ export default function Profile() {
           </div>
         </div>
         <div className="bg-gray-800/60 rounded-lg px-3 py-2 text-xs text-gray-400 space-y-0.5">
-          <div>⭐ <span className="text-white">Dokładny wynik</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{settings?.points_exact ?? 3} pkt</span></div>
-          <div>✅ <span className="text-white">Dobry typ</span> (1/X/2) = <span className="text-green-400 font-bold">{settings?.points_outcome ?? 1} pkt</span></div>
+          <div>⭐ <span className="text-white">Dokładny wynik</span> (wynik regulaminowy) = <span className="text-yellow-400 font-bold">{pointsExact} pkt</span></div>
+          <div>✅ <span className="text-white">Dobry typ</span> (1/X/2) = <span className="text-green-400 font-bold">{pointsOutcome} pkt</span></div>
           <div className="text-gray-500 pt-0.5">W fazie pucharowej liczy się wynik po 90 min — bez dogrywki i karnych.</div>
         </div>
       </div>
 
       <h3 className="font-semibold text-lg">Historia typów</h3>
       <GroupedPredHistory predictions={predictions} />
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className="text-xs text-gray-500 mb-3">Strefa niebezpieczna</p>
+        {deleteError && <p className="text-red-400 text-xs mb-2">{deleteError}</p>}
+        {deleteConfirm ? (
+          <div className="bg-red-950/60 border border-red-800/50 rounded-xl px-4 py-3 space-y-3">
+            <p className="text-sm text-red-300 font-semibold">Czy na pewno chcesz usunąć konto?</p>
+            <p className="text-xs text-red-400">Ta operacja jest nieodwracalna. Zostaną usunięte wszystkie Twoje typy i dane.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg text-sm font-semibold transition"
+              >
+                {deleteLoading ? 'Usuwanie...' : 'Tak, usuń moje konto'}
+              </button>
+              <button
+                onClick={() => { setDeleteConfirm(false); setDeleteError('') }}
+                className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
+              >
+                Anuluj
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            className="text-xs text-gray-600 hover:text-red-400 transition"
+          >
+            Usuń konto
+          </button>
+        )}
+      </div>
     </div>
   )
 }

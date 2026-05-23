@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.database import engine, Base
+from core.config import settings
 
 import models.user
 import models.league
@@ -15,10 +16,17 @@ from routers import auth, matches, cron, predictions, ranking, leagues, debug, a
 
 app = FastAPI(title="Typerek API", version="0.1.0")
 
+_cors_origins = list({
+    settings.FRONTEND_URL,
+    "https://typerek-ngk.pl",
+    "https://www.typerek-ngk.pl",
+    *settings.CORS_ORIGINS,
+})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

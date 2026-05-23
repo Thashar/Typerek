@@ -3,12 +3,14 @@ import traceback
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from core.database import engine, get_db
+from routers.deps import get_admin_user
+from models.user import User
 
 router = APIRouter(prefix="/api/debug", tags=["debug"])
 
 
 @router.get("/db")
-def test_db():
+def test_db(_: User = Depends(get_admin_user)):
     raw_env = os.environ.get("DATABASE_URL", "NOT_SET")
     safe_repr = repr(raw_env[-30:])
 
@@ -22,7 +24,7 @@ def test_db():
 
 
 @router.get("/apicheck")
-async def debug_apicheck():
+async def debug_apicheck(_: User = Depends(get_admin_user)):
     import httpx
     from core.config import settings
     key = settings.FOOTBALL_DATA_API_KEY
@@ -41,7 +43,7 @@ async def debug_apicheck():
 
 
 @router.get("/league-check")
-async def debug_league_check():
+async def debug_league_check(_: User = Depends(get_admin_user)):
     """Sprawdza dostepnosc lig - bez filtra daty, tylko league+season."""
     import httpx
     from core.config import settings
@@ -77,7 +79,7 @@ async def debug_league_check():
 
 
 @router.get("/sync-check")
-async def debug_sync_check():
+async def debug_sync_check(_: User = Depends(get_admin_user)):
     """Sprawdza dostepnosc turniejow w football-data.org."""
     from services import football_api
     from datetime import date
@@ -98,7 +100,7 @@ async def debug_sync_check():
 
 
 @router.get("/live-raw")
-async def debug_live_raw():
+async def debug_live_raw(_: User = Depends(get_admin_user)):
     """Zwraca surową odpowiedź API dla meczów IN_PLAY."""
     import httpx
     from core.config import settings
@@ -132,7 +134,7 @@ async def debug_live_raw():
 
 
 @router.get("/sync/{comp_code}")
-async def debug_sync_comp(comp_code: str, db: Session = Depends(get_db)):
+async def debug_sync_comp(comp_code: str, db: Session = Depends(get_db), _: User = Depends(get_admin_user)):
     try:
         from services import sync, football_api
         from datetime import date

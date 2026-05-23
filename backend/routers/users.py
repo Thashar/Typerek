@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from routers.deps import get_current_user
 from models.user import User
+from models.prediction import Prediction
+from models.private_league import PrivateLeagueMember
 import re
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -54,4 +56,17 @@ def delete_avatar(
     current_user: User = Depends(get_current_user),
 ):
     current_user.avatar = None
+    db.commit()
+
+
+@router.delete("/me", status_code=204)
+def delete_account(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.is_admin:
+        raise HTTPException(status_code=400, detail="Administrator nie może usunąć własnego konta")
+    db.query(Prediction).filter(Prediction.user_id == current_user.id).delete()
+    db.query(PrivateLeagueMember).filter(PrivateLeagueMember.user_id == current_user.id).delete()
+    db.delete(current_user)
     db.commit()

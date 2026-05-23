@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -204,7 +205,7 @@ async def admin_sync_all(
         results[code] = sum(sync._upsert_fixture(db, f) for f in fixtures)
 
     gs = GameSettings.get(db)
-    gs.last_synced_at = datetime.utcnow()
+    gs.last_synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     return {"results": results, "total": sum(results.values())}
 

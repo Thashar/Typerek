@@ -138,7 +138,7 @@ function MatchCard({ match, prediction }) {
       <div className="flex items-center gap-2">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="font-semibold text-right truncate">{match.home_team}</span>
-          {match.home_team_logo && <img src={match.home_team_logo} className="w-6 h-6 object-contain shrink-0" alt="" />}
+          {match.home_team_logo && <img src={match.home_team_logo} className="w-6 h-6 object-contain shrink-0" alt="" loading="lazy" />}
         </div>
 
         <div className="shrink-0 w-16 text-center font-bold">
@@ -159,7 +159,7 @@ function MatchCard({ match, prediction }) {
         </div>
 
         <div className="flex-1 flex items-center gap-2 min-w-0">
-          {match.away_team_logo && <img src={match.away_team_logo} className="w-6 h-6 object-contain shrink-0" alt="" />}
+          {match.away_team_logo && <img src={match.away_team_logo} className="w-6 h-6 object-contain shrink-0" alt="" loading="lazy" />}
           <span className="font-semibold truncate">{match.away_team}</span>
         </div>
       </div>

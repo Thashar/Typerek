@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "https://typerek-ngk.vercel.app"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:4173"]
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

@@ -161,29 +161,104 @@ def google_callback(code: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Brak adresu e-mail od Google")
 
     user = db.query(User).filter(User.email == email).first()
-    if not user:
-        base = re.sub(r"[^a-zA-Z0-9_]", "", email.split("@")[0])[:20] or "user"
-        username = base
-        counter = 1
-        while db.query(User).filter(User.username == username).first():
-            username = f"{base}{counter}"
-            counter += 1
-        user = User(
-            username=username,
-            email=email,
-            hashed_password=hash_password(secrets.token_hex(16)),
-            is_verified=True,
+    if user:
+        if not user.is_verified:
+            user.is_verified = True
+            db.commit()
+        session_token = jwt.encode(
+            {"sub": str(user.id), "type": "google_session", "exp": datetime.now(timezone.utc) + timedelta(minutes=2)},
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM,
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    elif not user.is_verified:
-        user.is_verified = True
-        db.commit()
+        return RedirectResponse(f"{settings.FRONTEND_URL}/auth/google/callback?session={session_token}")
+    else:
+        pending_token = jwt.encode(
+            {
+                "email": email,
+                "avatar": userinfo.get("picture", "") or "",
+                "type": "google_pending",
+                "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+            },
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM,
+        )
+        return RedirectResponse(f"{settings.FRONTEND_URL}/auth/google/callback?pending={pending_token}")
 
-    at = create_access_token({"sub": str(user.id)})
-    rt = create_refresh_token({"sub": str(user.id)})
-    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/google/callback?access_token={at}&refresh_token={rt}")
+
+class GoogleExchangeRequest(BaseModel):
+    session_token: str
+
+
+class GoogleCompleteRequest(BaseModel):
+    pending_token: str
+    invite_code: str
+
+
+@router.post("/google/exchange", response_model=TokenResponse)
+def google_exchange(body: GoogleExchangeRequest, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(body.session_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Nieważny lub wygasły token sesji")
+    if payload.get("type") != "google_session":
+        raise HTTPException(status_code=400, detail="Nieprawidłowy typ tokenu")
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Użytkownik nie istnieje")
+    return {
+        "access_token": create_access_token({"sub": str(user.id)}),
+        "refresh_token": create_refresh_token({"sub": str(user.id)}),
+    }
+
+
+@router.post("/google/complete", response_model=TokenResponse)
+def google_complete(body: GoogleCompleteRequest, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(body.pending_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Nieważny lub wygasły token rejestracji")
+    if payload.get("type") != "google_pending":
+        raise HTTPException(status_code=400, detail="Nieprawidłowy typ tokenu")
+
+    email = payload["email"]
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        return {
+            "access_token": create_access_token({"sub": str(user.id)}),
+            "refresh_token": create_refresh_token({"sub": str(user.id)}),
+        }
+
+    from models.private_league import PrivateLeague, PrivateLeagueMember
+    league = db.query(PrivateLeague).filter(
+        PrivateLeague.invite_code == body.invite_code.strip().upper()
+    ).first()
+    if not league:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy kod zaproszenia")
+
+    base = re.sub(r"[^a-zA-Z0-9_]", "", email.split("@")[0])[:20] or "user"
+    username = base
+    counter = 1
+    while db.query(User).filter(User.username == username).first():
+        username = f"{base}{counter}"
+        counter += 1
+
+    avatar = payload.get("avatar") or None
+    user = User(
+        username=username,
+        email=email,
+        hashed_password=hash_password(secrets.token_hex(16)),
+        is_verified=True,
+        avatar=avatar,
+    )
+    db.add(user)
+    db.flush()
+    db.add(PrivateLeagueMember(league_id=league.id, user_id=user.id))
+    db.commit()
+    db.refresh(user)
+    return {
+        "access_token": create_access_token({"sub": str(user.id)}),
+        "refresh_token": create_refresh_token({"sub": str(user.id)}),
+    }
 
 
 @router.post("/reset-password")

@@ -58,7 +58,7 @@ export default function Chat() {
       const params = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
       return api.get(`/chat/messages${params}`).then(r => r.data)
     },
-    refetchInterval: 10000,
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
     staleTime: 0,
   })

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 export default function Register() {
   const { register } = useAuth()
   const [form, setForm] = useState({ username: '', email: '', password: '', invite_code: '' })
+  const [agreedToRodo, setAgreedToRodo] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
@@ -96,9 +97,23 @@ export default function Register() {
                   required minLength={6}
                 />
               </div>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="rodo"
+                  checked={agreedToRodo}
+                  onChange={e => setAgreedToRodo(e.target.checked)}
+                  required
+                  className="mt-0.5 shrink-0 accent-brand-500"
+                />
+                <label htmlFor="rodo" className="text-xs text-gray-400 leading-relaxed">
+                  Rejestrując się, akceptuję przetwarzanie danych osobowych (adres e-mail, nazwa użytkownika)
+                  w celu świadczenia usługi typowania meczów zgodnie z RODO. Dane nie są udostępniane osobom trzecim.
+                </label>
+              </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !agreedToRodo}
                 className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg py-2.5 font-semibold transition"
               >
                 {loading ? 'Rejestracja...' : 'Zarejestruj się'}

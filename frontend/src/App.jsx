@@ -34,7 +34,7 @@ export default function App() {
           <Route path="/" element={<Matches />} />
           <Route path="/worldcup" element={<WorldCup />} />
           <Route path="/ranking" element={<Ranking />} />
-<Route path="/profile" element={<Profile />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/user/:userId" element={<UserProfile />} />
           <Route path="/admin" element={<Admin />} />
