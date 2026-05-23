@@ -93,11 +93,15 @@ async def fetch_fixtures_by_competition(comp_code: str, from_date: str, to_date:
 
 async def fetch_live_fixtures() -> list[dict]:
     async def _fetch_one(code: str) -> list[dict]:
-        try:
-            data = await _get(f"/competitions/{code}/matches", {"status": "IN_PLAY"})
-            return [_to_fixture(m, code) for m in data.get("matches", [])]
-        except Exception:
-            return []
+        result = []
+        # IN_PLAY = gra trwa; PAUSED = przerwa między połowami
+        for status in ("IN_PLAY", "PAUSED"):
+            try:
+                data = await _get(f"/competitions/{code}/matches", {"status": status})
+                result.extend(_to_fixture(m, code) for m in data.get("matches", []))
+            except Exception:
+                pass
+        return result
 
     nested = await asyncio.gather(*[_fetch_one(code) for code in COMPETITIONS])
     return [item for sublist in nested for item in sublist]

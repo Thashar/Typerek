@@ -158,6 +158,17 @@ def unverify_all_users(
     return {"count": result.rowcount}
 
 
+@router.post("/recalculate-points")
+def recalculate_points(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    """Przelicz punkty dla wszystkich zakończonych meczów bez punktów."""
+    sync._calculate_points_for_finished(db)
+    db.commit()
+    return {"detail": "ok"}
+
+
 @router.post("/reset-all-points")
 def reset_all_points(
     db: Session = Depends(get_db),
@@ -204,6 +215,8 @@ async def admin_sync_all(
     for code, fixtures in fetched:
         results[code] = sum(sync._upsert_fixture(db, f) for f in fixtures)
 
+    sync._calculate_points_for_finished(db)
+
     gs = GameSettings.get(db)
     gs.last_synced_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
@@ -226,6 +239,7 @@ async def admin_sync_competition(
     saved = 0
     for f in fixtures:
         saved += sync._upsert_fixture(db, f)
+    sync._calculate_points_for_finished(db)
     db.commit()
     return {"competition": comp_code, "synced": saved}
 

@@ -301,6 +301,16 @@ export default function Admin() {
     onError: () => setSyncMsg('✗ Błąd synchronizacji'),
   })
 
+  const recalcPoints = useMutation({
+    mutationFn: () => api.post('/admin/recalculate-points').then(r => r.data),
+    onSuccess: () => {
+      setSyncMsg('✓ Punkty przeliczone')
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['ranking'] })
+    },
+    onError: () => setSyncMsg('✗ Błąd przeliczania punktów'),
+  })
+
   if (!user?.is_admin) { navigate('/'); return null }
 
   const refreshUsers = () => {
@@ -356,13 +366,22 @@ export default function Admin() {
       {/* Synchronizacja */}
       <Section title="🔄 Synchronizacja danych">
         <p className="text-xs text-gray-400">Zaciąga mecze wszystkich lig do końca roku: {COMPETITIONS.map(c => c.code).join(', ')}</p>
-        <button
-          onClick={() => { setSyncMsg(null); syncAll.mutate() }}
-          disabled={syncAll.isPending}
-          className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition"
-        >
-          {syncAll.isPending ? '⏳ Synchronizuję...' : '🔄 Synchronizuj wszystkie dane'}
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => { setSyncMsg(null); syncAll.mutate() }}
+            disabled={syncAll.isPending}
+            className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition"
+          >
+            {syncAll.isPending ? '⏳ Synchronizuję...' : '🔄 Synchronizuj wszystkie dane'}
+          </button>
+          <button
+            onClick={() => { setSyncMsg(null); recalcPoints.mutate() }}
+            disabled={recalcPoints.isPending}
+            className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-lg transition text-sm"
+          >
+            {recalcPoints.isPending ? '⏳ Przeliczam...' : '⭐ Przelicz punkty'}
+          </button>
+        </div>
         {gameSettings?.last_synced_at && (
           <p className="text-xs text-gray-500">
             Ostatnia synchronizacja: {new Date(gameSettings.last_synced_at + 'Z').toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}

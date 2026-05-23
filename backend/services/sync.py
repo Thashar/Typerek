@@ -76,6 +76,9 @@ async def update_live_and_recent(db: Session) -> int:
     ).limit(1).first()
 
     if not has_active:
+        # Mimo braku aktywnych meczów przelicz punkty — np. po admin sync
+        _calculate_points_for_finished(db)
+        db.commit()
         return 0
 
     fixtures = await football_api.fetch_live_fixtures()
@@ -137,9 +140,9 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.home_team_logo = teams["home"].get("logo")
     match.away_team_logo = teams["away"].get("logo")
     parsed_status = _parse_status(status_short)
-    # Fallback: API mowi LIVE ale minelo 2h od kickoffu (90 min + przerwa + czas doliczony)
+    # Fallback: API mowi LIVE ale minelo 2.5h od kickoffu (90 min + przerwa + czas doliczony + margines)
     if parsed_status == MatchStatus.LIVE:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2, minutes=30)
         if kickoff < cutoff:
             parsed_status = MatchStatus.FINISHED
 
