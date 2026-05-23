@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { getLive } from '../api/matches'
 import api from '../api/client'
+import SplashScreen from './SplashScreen'
 
 const baseNav = [
   { to: '/', label: '⚽ Mecze' },
@@ -57,9 +58,7 @@ export default function Layout() {
   const unreadChat = useChatUnread(user?.id)
   const nav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-500">Ładowanie...</div>
-  }
+  if (loading) return <SplashScreen />
 
   if (!user) return <Navigate to="/login" replace />
 
