@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { globalRanking, liveRankingChanges } from '../api/ranking'
 import { useAuth } from '../context/AuthContext'
+import PageLoader from '../components/PageLoader'
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
@@ -43,7 +44,7 @@ export default function Ranking() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <h2 className="text-xl font-bold">Ranking</h2>
 
-      {isLoading && <div className="text-gray-500 text-center py-12">Ładowanie rankingu...</div>}
+      {isLoading && <PageLoader />}
 
       {!isLoading && entries.length === 0 && (
         <div className="text-gray-500 text-center py-12">Brak danych rankingowych</div>

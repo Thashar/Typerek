@@ -8,6 +8,7 @@ import { getMatches, getMatchDates, getLive } from '../api/matches'
 import { myPredictions } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 import MatchCard from '../components/MatchCard'
+import PageLoader from '../components/PageLoader'
 
 const LIVE_KEY = 'LIVE'
 
@@ -201,7 +202,7 @@ export default function Matches() {
         <p className="text-center text-gray-500 py-8 text-sm">Brak nadchodzących meczów dla tej ligi</p>
       )}
 
-      {loading && <div className="text-center text-gray-500 py-12">Ładowanie meczów...</div>}
+      {loading && <PageLoader />}
 
       {!loading && isLiveMode && matches.length === 0 && (
         <p className="text-center text-gray-500 py-12 text-sm">Brak trwających meczów</p>

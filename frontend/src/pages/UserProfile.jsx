@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { userPredictions } from '../api/predictions'
 import { globalRanking } from '../api/ranking'
 import { GroupedPredHistory } from '../components/PredHistory'
+import PageLoader from '../components/PageLoader'
 
 export default function UserProfile() {
   const { userId } = useParams()
@@ -40,7 +41,7 @@ export default function UserProfile() {
 
       <h2 className="font-semibold text-white">Typy</h2>
 
-      {isLoading && <div className="text-gray-500 text-center py-12">Ładowanie...</div>}
+      {isLoading && <PageLoader />}
       {!isLoading && (predictions?.length === 0) && (
         <div className="text-gray-500 text-center py-12 text-sm">Brak typów do pokazania</div>
       )}

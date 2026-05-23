@@ -5,6 +5,7 @@ import { pl } from 'date-fns/locale'
 import api from '../api/client'
 import { myPredictions } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
+import PageLoader from '../components/PageLoader'
 
 function MatchRow({ m, prediction }) {
   const kickoff = new Date(m.kickoff + 'Z')
@@ -119,9 +120,7 @@ export default function WorldCup() {
   const hasGroups = Object.keys(groups).length > 0
   const hasKnockout = Object.keys(knockout).length > 0
 
-  if (isLoading) {
-    return <div className="text-center text-gray-500 py-20">Ładowanie...</div>
-  }
+  if (isLoading) return <PageLoader />
 
   if (!hasGroups && !hasKnockout) {
     return (

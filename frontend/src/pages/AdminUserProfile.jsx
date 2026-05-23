@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { getSettings } from '../api/settings'
+import PageLoader from '../components/PageLoader'
 
 const STATUS_LABELS = { scheduled: 'Oczekuje', live: 'LIVE', finished: 'Zakończony', postponed: 'Przełożony', cancelled: 'Odwołany' }
 
@@ -79,7 +80,7 @@ export default function AdminUserProfile() {
 
       <h3 className="font-semibold text-lg">Typy ({predictions.length})</h3>
 
-      {isLoading && <p className="text-gray-500 text-center py-8">Ładowanie...</p>}
+      {isLoading && <PageLoader />}
 
       <div className="space-y-2">
         {!isLoading && predictions.length === 0 && (
