@@ -25,6 +25,11 @@ function LeaguesSection({ queryClient }) {
     mutationFn: (id) => api.delete(`/admin/leagues/${id}`),
     onSuccess: () => { setDeleteConfirm(null); refetch(); queryClient.invalidateQueries({ queryKey: ['admin-users'] }) },
   })
+  const addRankedMut = useMutation({
+    mutationFn: (id) => api.post(`/admin/leagues/${id}/add-ranked`).then(r => r.data),
+    onSuccess: (data, id) => { setMsg(`Dodano ${data.added} os.`); setTimeout(() => setMsg(''), 3000); refetch(); queryClient.invalidateQueries({ queryKey: ['admin-users'] }) },
+    onError: (e) => setErr(e.response?.data?.detail || 'Błąd'),
+  })
 
   return (
     <div className="space-y-3">
@@ -42,6 +47,12 @@ function LeaguesSection({ queryClient }) {
                 className="text-xs text-gray-500 hover:text-white transition"
                 title="Kopiuj kod"
               >📋</button>
+              <button
+                onClick={() => addRankedMut.mutate(l.id)}
+                disabled={addRankedMut.isPending}
+                className="text-xs text-gray-500 hover:text-brand-400 disabled:opacity-50 transition"
+                title="Dodaj wszystkich zweryfikowanych bez ligi"
+              >+👥</button>
               {deleteConfirm === l.id ? (
                 <>
                   <button onClick={() => deleteMut.mutate(l.id)} className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition">Usuń</button>

@@ -292,6 +292,27 @@ def admin_league_ranking(
     return {"entries": entries, "total": len(entries)}
 
 
+@router.post("/leagues/{league_id}/add-ranked")
+def admin_add_ranked_to_league(
+    league_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    already_assigned = {m.user_id for m in db.query(PrivateLeagueMember).all()}
+    users_to_add = (
+        db.query(User)
+        .filter(User.is_ranked == True, User.is_active == True, User.id.notin_(already_assigned))
+        .all()
+    )
+    for u in users_to_add:
+        db.add(PrivateLeagueMember(league_id=league_id, user_id=u.id))
+    db.commit()
+    return {"added": len(users_to_add)}
+
+
 @router.put("/users/{user_id}/league")
 def change_user_league(
     user_id: int,
