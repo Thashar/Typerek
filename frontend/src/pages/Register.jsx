@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
   const { register } = useAuth()
-  const [form, setForm] = useState({ username: '', email: '', password: '' })
+  const [form, setForm] = useState({ username: '', email: '', password: '', invite_code: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
@@ -14,7 +14,7 @@ export default function Register() {
     setError('')
     setLoading(true)
     try {
-      await register(form.username, form.email, form.password)
+      await register(form.username, form.email, form.password, form.invite_code)
       setDone(true)
     } catch (err) {
       const detail = err.response?.data?.detail
@@ -56,6 +56,16 @@ export default function Register() {
           ) : (
             <form onSubmit={handle} className="space-y-4">
               {error && <p className="text-red-400 text-sm bg-red-950 rounded-lg px-4 py-2">{error}</p>}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Kod zaproszenia</label>
+                <input
+                  className="w-full bg-gray-800 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-500 tracking-widest font-mono uppercase"
+                  value={form.invite_code}
+                  onChange={e => setForm(f => ({ ...f, invite_code: e.target.value.toUpperCase() }))}
+                  required
+                  placeholder="np. ABC1234567"
+                />
+              </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Nazwa użytkownika</label>
                 <input

@@ -33,7 +33,7 @@ class ResetPasswordRequest(BaseModel):
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    user = register_user(db, body.username, body.email, body.password)
+    user = register_user(db, body.username, body.email, body.password, body.invite_code)
 
     expire = datetime.now(timezone.utc) + timedelta(hours=24)
     token = jwt.encode(

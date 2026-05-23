@@ -1,26 +1,42 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { globalRanking, liveRankingChanges } from '../api/ranking'
 import { useAuth } from '../context/AuthContext'
 import PageLoader from '../components/PageLoader'
+import api from '../api/client'
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
 export default function Ranking() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { data, isLoading } = useQuery({ queryKey: ['ranking'], queryFn: globalRanking })
+  const [selectedLeague, setSelectedLeague] = useState(null)
+
+  const { data: leagues } = useQuery({
+    queryKey: ['admin-leagues'],
+    queryFn: () => api.get('/admin/leagues').then(r => r.data),
+    enabled: !!user?.is_admin,
+  })
+
+  const { data, isLoading } = useQuery({ queryKey: ['ranking'], queryFn: globalRanking, enabled: !selectedLeague })
+  const { data: leagueData, isLoading: leagueLoading } = useQuery({
+    queryKey: ['admin-league-ranking', selectedLeague],
+    queryFn: () => api.get(`/admin/leagues/${selectedLeague}/ranking`).then(r => r.data),
+    enabled: !!selectedLeague,
+  })
   const { data: liveData } = useQuery({
     queryKey: ['ranking-live-changes'],
     queryFn: liveRankingChanges,
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
     staleTime: 0,
+    enabled: !selectedLeague,
   })
 
-  const rawEntries = data?.entries ?? []
-  const hasLive = liveData?.has_live ?? false
+  const rawEntries = selectedLeague ? (leagueData?.entries ?? []) : (data?.entries ?? [])
+  const hasLive = !selectedLeague && (liveData?.has_live ?? false)
+  const isLoading2 = selectedLeague ? leagueLoading : isLoading
 
   const entries = useMemo(() => {
     if (!hasLive) return rawEntries
@@ -44,9 +60,29 @@ export default function Ranking() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
       <h2 className="text-xl font-bold">Ranking</h2>
 
-      {isLoading && <PageLoader />}
+      {user?.is_admin && leagues?.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <button
+            onClick={() => setSelectedLeague(null)}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${!selectedLeague ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+          >
+            Globalny
+          </button>
+          {leagues.map(l => (
+            <button
+              key={l.id}
+              onClick={() => setSelectedLeague(l.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${selectedLeague === l.id ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+            >
+              {l.name}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {!isLoading && entries.length === 0 && (
+      {isLoading2 && <PageLoader />}
+
+      {!isLoading2 && entries.length === 0 && (
         <div className="text-gray-500 text-center py-12">Brak danych rankingowych</div>
       )}
 

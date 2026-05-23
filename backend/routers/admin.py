@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
 from routers.deps import get_admin_user
 from models.user import User
@@ -8,6 +9,12 @@ from models.match import Match, MatchStatus
 from models.prediction import Prediction
 from models.invite_code import InviteCode
 from models.chat import ChatMessage
+from models.private_league import PrivateLeague, PrivateLeagueMember
+from services import ranking as ranking_svc
+
+
+class LeagueNameRequest(BaseModel):
+    name: str
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -51,6 +58,12 @@ def admin_users(
         .order_by(User.id)
         .all()
     )
+    memberships = (
+        db.query(PrivateLeagueMember.user_id, PrivateLeague.id, PrivateLeague.name)
+        .join(PrivateLeague, PrivateLeagueMember.league_id == PrivateLeague.id)
+        .all()
+    )
+    user_league = {m.user_id: {"league_id": m.id, "league_name": m.name} for m in memberships}
     return [
         {
             "id": r.id,
@@ -62,6 +75,8 @@ def admin_users(
             "is_verified": r.is_verified,
             "total_points": int(r.total_points),
             "created_at": r.created_at.isoformat() if r.created_at else None,
+            "league_id": user_league.get(r.id, {}).get("league_id"),
+            "league_name": user_league.get(r.id, {}).get("league_name"),
         }
         for r in rows
     ]
@@ -207,3 +222,87 @@ async def admin_sync_competition(
         saved += sync._upsert_fixture(db, f)
     db.commit()
     return {"competition": comp_code, "synced": saved}
+
+
+@router.get("/leagues")
+def admin_get_leagues(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    leagues = db.query(PrivateLeague).options(joinedload(PrivateLeague.members)).all()
+    return [
+        {
+            "id": l.id,
+            "name": l.name,
+            "invite_code": l.invite_code,
+            "owner_id": l.owner_id,
+            "members_count": len(l.members),
+            "created_at": l.created_at,
+        }
+        for l in leagues
+    ]
+
+
+@router.post("/leagues", status_code=201)
+def admin_create_league(
+    body: LeagueNameRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    league = PrivateLeague(
+        name=body.name,
+        invite_code=PrivateLeague.generate_invite_code(),
+        owner_id=current_user.id,
+    )
+    db.add(league)
+    db.commit()
+    db.refresh(league)
+    return {
+        "id": league.id,
+        "name": league.name,
+        "invite_code": league.invite_code,
+        "owner_id": league.owner_id,
+        "members_count": 0,
+        "created_at": league.created_at,
+    }
+
+
+@router.patch("/leagues/{league_id}")
+def admin_edit_league(
+    league_id: int,
+    body: LeagueNameRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    league.name = body.name
+    db.commit()
+    return {"id": league.id, "name": league.name}
+
+
+@router.delete("/leagues/{league_id}", status_code=204)
+def admin_delete_league(
+    league_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    db.delete(league)
+    db.commit()
+
+
+@router.get("/leagues/{league_id}/ranking")
+def admin_league_ranking(
+    league_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    entries = ranking_svc.get_private_league_ranking(db, league_id)
+    return {"entries": entries, "total": len(entries)}

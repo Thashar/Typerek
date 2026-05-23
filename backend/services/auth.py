@@ -1,10 +1,17 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from models.user import User
+from models.private_league import PrivateLeague, PrivateLeagueMember
 from core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 
 
-def register_user(db: Session, username: str, email: str, password: str) -> User:
+def register_user(db: Session, username: str, email: str, password: str, invite_code: str) -> User:
+    league = db.query(PrivateLeague).filter(
+        PrivateLeague.invite_code == invite_code.strip().upper()
+    ).first()
+    if not league:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy kod zaproszenia")
+
     if db.query(User).filter(User.username == username).first():
         raise HTTPException(status_code=400, detail="Nazwa użytkownika jest już zajęta")
     if db.query(User).filter(User.email == email).first():
@@ -16,6 +23,8 @@ def register_user(db: Session, username: str, email: str, password: str) -> User
         hashed_password=hash_password(password),
     )
     db.add(user)
+    db.flush()
+    db.add(PrivateLeagueMember(league_id=league.id, user_id=user.id))
     db.commit()
     db.refresh(user)
     return user

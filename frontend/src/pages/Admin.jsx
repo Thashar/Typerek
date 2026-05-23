@@ -5,6 +5,100 @@ import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { getSettings, updateSettings } from '../api/settings'
 
+function LeaguesSection({ queryClient }) {
+  const [newName, setNewName] = useState('')
+  const [editId, setEditId] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [msg, setMsg] = useState('')
+
+  const { data: leagues = [], refetch } = useQuery({
+    queryKey: ['admin-leagues'],
+    queryFn: () => api.get('/admin/leagues').then(r => r.data),
+  })
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/admin/leagues', { name: newName.trim() }),
+    onSuccess: () => { setNewName(''); refetch(); queryClient.invalidateQueries({ queryKey: ['admin-users'] }) },
+  })
+  const editMut = useMutation({
+    mutationFn: (id) => api.patch(`/admin/leagues/${id}`, { name: editName.trim() }),
+    onSuccess: () => { setEditId(null); refetch() },
+  })
+  const deleteMut = useMutation({
+    mutationFn: (id) => api.delete(`/admin/leagues/${id}`),
+    onSuccess: () => { setDeleteConfirm(null); refetch(); queryClient.invalidateQueries({ queryKey: ['admin-users'] }) },
+  })
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        {leagues.length === 0 && <p className="text-gray-500 text-sm">Brak lig. Utwórz pierwszą.</p>}
+        {leagues.map(l => (
+          <div key={l.id} className="bg-gray-700 rounded-lg p-3 space-y-2">
+            {editId === l.id ? (
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 bg-gray-600 rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && editMut.mutate(l.id)}
+                  autoFocus
+                />
+                <button onClick={() => editMut.mutate(l.id)} className="text-xs bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded transition">Zapisz</button>
+                <button onClick={() => setEditId(null)} className="text-xs bg-gray-600 hover:bg-gray-500 text-gray-300 px-3 py-1.5 rounded transition">Anuluj</button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="font-semibold text-white text-sm">{l.name}</span>
+                  <span className="ml-2 text-xs text-gray-400">{l.members_count} os.</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <button onClick={() => { setEditId(l.id); setEditName(l.name) }} className="text-xs text-gray-400 hover:text-white transition">✏️</button>
+                  {deleteConfirm === l.id ? (
+                    <>
+                      <button onClick={() => deleteMut.mutate(l.id)} className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded transition">Usuń</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="text-xs text-gray-400 hover:text-white transition">Anuluj</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDeleteConfirm(l.id)} className="text-gray-600 hover:text-red-400 transition text-lg leading-none">×</button>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Kod:</span>
+              <code className="text-xs bg-gray-800 text-brand-400 px-2 py-0.5 rounded font-mono tracking-widest">{l.invite_code}</code>
+              <button
+                onClick={() => { navigator.clipboard.writeText(l.invite_code); setMsg('Skopiowano!'); setTimeout(() => setMsg(''), 2000) }}
+                className="text-xs text-gray-500 hover:text-white transition"
+              >📋</button>
+            </div>
+          </div>
+        ))}
+        {msg && <p className="text-xs text-green-400">{msg}</p>}
+      </div>
+      <div className="flex gap-2">
+        <input
+          className="flex-1 bg-gray-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          placeholder="Nazwa nowej ligi..."
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && newName.trim() && createMut.mutate()}
+        />
+        <button
+          onClick={() => createMut.mutate()}
+          disabled={!newName.trim() || createMut.isPending}
+          className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+        >
+          {createMut.isPending ? '...' : '+ Dodaj'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function StatCard({ label, value }) {
   return (
     <div className="bg-gray-800 rounded-xl p-4 text-center">
@@ -356,14 +450,44 @@ export default function Admin() {
         )}
       </Section>
 
-      {/* Użytkownicy */}
-      <Section title={`👥 Użytkownicy (${users?.length ?? 0})`}>
-        <div className="divide-y divide-gray-700 -mx-0">
-          {users?.map(u => (
-            <UserRow key={u.id} u={u} currentUserId={user?.id} onChanged={refreshUsers} />
-          ))}
-        </div>
+      {/* Ligi */}
+      <Section title="🏅 Ligi">
+        <LeaguesSection queryClient={queryClient} />
       </Section>
+
+      {/* Użytkownicy podzieleni na ligi */}
+      {(() => {
+        if (!users) return null
+        const byLeague = {}
+        const noLeague = []
+        users.forEach(u => {
+          if (u.league_id) {
+            const key = u.league_id
+            if (!byLeague[key]) byLeague[key] = { name: u.league_name, users: [] }
+            byLeague[key].users.push(u)
+          } else {
+            noLeague.push(u)
+          }
+        })
+        return (
+          <>
+            {Object.entries(byLeague).map(([lid, { name, users: lu }]) => (
+              <Section key={lid} title={`👥 ${name} (${lu.length})`}>
+                <div className="divide-y divide-gray-700">
+                  {lu.map(u => <UserRow key={u.id} u={u} currentUserId={user?.id} onChanged={refreshUsers} />)}
+                </div>
+              </Section>
+            ))}
+            {noLeague.length > 0 && (
+              <Section title={`👥 Bez ligi (${noLeague.length})`}>
+                <div className="divide-y divide-gray-700">
+                  {noLeague.map(u => <UserRow key={u.id} u={u} currentUserId={user?.id} onChanged={refreshUsers} />)}
+                </div>
+              </Section>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }
