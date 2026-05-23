@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
 from routers.deps import get_current_user
 from models.user import User
@@ -32,6 +32,7 @@ def get_messages(
 ):
     msgs = (
         db.query(ChatMessage)
+        .options(joinedload(ChatMessage.user))
         .order_by(ChatMessage.created_at.desc())
         .limit(100)
         .all()

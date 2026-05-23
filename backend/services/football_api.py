@@ -1,6 +1,16 @@
+import asyncio
 import httpx
 from datetime import datetime, timezone
 from core.config import settings
+
+_http_client: httpx.AsyncClient | None = None
+
+
+def _client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=8)
+    return _http_client
 
 _BASE_URL = "https://api.football-data.org/v4"
 
@@ -71,10 +81,9 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
 
 
 async def _get(path: str, params: dict = None) -> dict:
-    async with httpx.AsyncClient(timeout=8) as client:
-        r = await client.get(f"{_BASE_URL}{path}", headers=_headers(), params=params or {})
-        r.raise_for_status()
-        return r.json()
+    r = await _client().get(f"{_BASE_URL}{path}", headers=_headers(), params=params or {})
+    r.raise_for_status()
+    return r.json()
 
 
 async def fetch_fixtures_by_competition(comp_code: str, from_date: str, to_date: str) -> list[dict]:
@@ -83,24 +92,28 @@ async def fetch_fixtures_by_competition(comp_code: str, from_date: str, to_date:
 
 
 async def fetch_live_fixtures() -> list[dict]:
-    results = []
-    for code in COMPETITIONS:
+    async def _fetch_one(code: str) -> list[dict]:
         try:
             data = await _get(f"/competitions/{code}/matches", {"status": "IN_PLAY"})
-            results.extend(_to_fixture(m, code) for m in data.get("matches", []))
+            return [_to_fixture(m, code) for m in data.get("matches", [])]
         except Exception:
-            pass
-    return results
+            return []
+
+    nested = await asyncio.gather(*[_fetch_one(code) for code in COMPETITIONS])
+    return [item for sublist in nested for item in sublist]
 
 
-async def fetch_fixtures_by_ids(fixture_ids: list[int]) -> list[dict]:
-    results = []
-    for code in COMPETITIONS:
+async def fetch_fixtures_by_ids(fixture_ids: list[int], comp_codes: list[str] | None = None) -> list[dict]:
+    """Pobiera zakończone mecze tylko dla podanych kompetycji (domyślnie wszystkie)."""
+    codes = comp_codes if comp_codes is not None else list(COMPETITIONS)
+    id_set = set(fixture_ids)
+
+    async def _fetch_one(code: str) -> list[dict]:
         try:
             data = await _get(f"/competitions/{code}/matches", {"status": "FINISHED"})
-            for m in data.get("matches", []):
-                if m["id"] in fixture_ids:
-                    results.append(_to_fixture(m, code))
+            return [_to_fixture(m, code) for m in data.get("matches", []) if m["id"] in id_set]
         except Exception:
-            pass
-    return results
+            return []
+
+    nested = await asyncio.gather(*[_fetch_one(code) for code in codes])
+    return [item for sublist in nested for item in sublist]
