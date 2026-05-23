@@ -74,7 +74,7 @@ export default function GoogleCallback() {
                 value={inviteCode}
                 onChange={e => setInviteCode(e.target.value.toUpperCase())}
                 required
-                placeholder="np. LIGA NGK 2025"
+                placeholder=""
                 autoFocus
               />
             </div>

@@ -64,7 +64,7 @@ export default function Register() {
                   value={form.invite_code}
                   onChange={e => setForm(f => ({ ...f, invite_code: e.target.value.toUpperCase() }))}
                   required
-                  placeholder="np. ABC1234567"
+                  placeholder=""
                 />
               </div>
               <div>
