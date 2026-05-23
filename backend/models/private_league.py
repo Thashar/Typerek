@@ -10,7 +10,7 @@ class PrivateLeague(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    invite_code: Mapped[str] = mapped_column(String(16), unique=True, index=True, nullable=False)
+    invite_code: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 

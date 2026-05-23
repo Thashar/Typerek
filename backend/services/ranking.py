@@ -93,39 +93,32 @@ def get_live_ranking_changes(db: Session) -> dict:
 
 
 def get_private_league_ranking(db: Session, league_id: int) -> list[dict]:
-    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
-    if not league:
-        return []
+    from models.settings import GameSettings
+    points_exact, points_outcome = GameSettings.get_points(db)
 
-    member_ids = [m.user_id for m in league.members]
-
-    rows = (
-        db.query(
-            User.id.label("user_id"),
-            User.username,
-            func.coalesce(func.sum(Prediction.points), 0).label("total_points"),
-            func.count(Prediction.id).label("predictions_count"),
-            func.sum(
-                func.cast(Prediction.points == POINTS_EXACT, int)
-            ).label("exact_hits"),
-            func.sum(
-                func.cast(Prediction.points == POINTS_OUTCOME, int)
-            ).label("outcome_hits"),
-        )
-        .outerjoin(Prediction, Prediction.user_id == User.id)
-        .filter(User.id.in_(member_ids))
-        .group_by(User.id, User.username)
-        .order_by(func.coalesce(func.sum(Prediction.points), 0).desc())
-        .all()
-    )
+    rows = db.execute(text("""
+        SELECT u.id AS user_id, u.username,
+               COALESCE(SUM(p.points), 0) AS total_points,
+               COUNT(p.id) AS predictions_count,
+               SUM(CASE WHEN p.points = :exact THEN 1 ELSE 0 END) AS exact_hits,
+               SUM(CASE WHEN p.points = :outcome THEN 1 ELSE 0 END) AS outcome_hits
+        FROM private_league_members plm
+        JOIN users u ON u.id = plm.user_id
+        LEFT JOIN predictions p ON p.user_id = u.id
+        WHERE plm.league_id = :league_id
+          AND u.is_active = TRUE
+        GROUP BY u.id, u.username
+        ORDER BY total_points DESC
+    """), {"league_id": league_id, "exact": points_exact, "outcome": points_outcome}).fetchall()
 
     return [
         {
             "rank": idx + 1,
             "user_id": r.user_id,
             "username": r.username,
-            "total_points": r.total_points,
-            "predictions_count": r.predictions_count,
+            "avatar": None,
+            "total_points": int(r.total_points),
+            "predictions_count": int(r.predictions_count),
             "exact_hits": int(r.exact_hits or 0),
             "outcome_hits": int(r.outcome_hits or 0),
         }
