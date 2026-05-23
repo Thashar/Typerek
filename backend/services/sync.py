@@ -60,6 +60,24 @@ async def sync_bulk_to_end_of_year(db: Session) -> int:
 
 async def update_live_and_recent(db: Session) -> int:
     """Aktualizuje wyniki meczy live i zakonczonych w ostatnich 2h."""
+    from sqlalchemy import or_, and_
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_start = now - timedelta(hours=3)
+
+    has_active = db.query(Match).filter(
+        or_(
+            Match.status == MatchStatus.LIVE,
+            and_(
+                Match.kickoff <= now,
+                Match.kickoff >= window_start,
+                Match.status.notin_([MatchStatus.FINISHED, MatchStatus.CANCELLED, MatchStatus.POSTPONED]),
+            ),
+        )
+    ).limit(1).first()
+
+    if not has_active:
+        return 0
+
     fixtures = await football_api.fetch_live_fixtures()
 
     recent = db.query(Match).filter(
