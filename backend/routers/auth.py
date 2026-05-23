@@ -1,15 +1,23 @@
 from datetime import datetime, timezone, timedelta
+import re
+import secrets
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
+import httpx
 from core.database import get_db
 from core.config import settings
-from core.security import hash_password
+from core.security import hash_password, create_access_token, create_refresh_token
 from schemas.user import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, UserResponse
 from services.auth import register_user, login_user, refresh_tokens
 from routers.deps import get_current_user
 from models.user import User
+
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -112,6 +120,70 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Błąd wysyłania e-maila: {e}")
     return {"detail": "Jeśli konto z tym adresem istnieje, wysłaliśmy link do resetu hasła."}
+
+
+@router.get("/google")
+def google_login():
+    redirect_uri = f"{settings.FRONTEND_URL}/api/auth/google/callback"
+    params = (
+        f"client_id={settings.GOOGLE_CLIENT_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&response_type=code"
+        f"&scope=openid%20email%20profile"
+        f"&access_type=offline"
+    )
+    return RedirectResponse(f"{GOOGLE_AUTH_URL}?{params}")
+
+
+@router.get("/google/callback")
+def google_callback(code: str, db: Session = Depends(get_db)):
+    redirect_uri = f"{settings.FRONTEND_URL}/api/auth/google/callback"
+
+    with httpx.Client() as client:
+        token_resp = client.post(GOOGLE_TOKEN_URL, data={
+            "code": code,
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        })
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Błąd Google OAuth")
+        access_token_google = token_resp.json().get("access_token")
+
+        userinfo_resp = client.get(GOOGLE_USERINFO_URL, headers={
+            "Authorization": f"Bearer {access_token_google}"
+        })
+        userinfo = userinfo_resp.json()
+
+    email = userinfo.get("email", "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Brak adresu e-mail od Google")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        base = re.sub(r"[^a-zA-Z0-9_]", "", email.split("@")[0])[:20] or "user"
+        username = base
+        counter = 1
+        while db.query(User).filter(User.username == username).first():
+            username = f"{base}{counter}"
+            counter += 1
+        user = User(
+            username=username,
+            email=email,
+            hashed_password=hash_password(secrets.token_hex(16)),
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif not user.is_verified:
+        user.is_verified = True
+        db.commit()
+
+    at = create_access_token({"sub": str(user.id)})
+    rt = create_refresh_token({"sub": str(user.id)})
+    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/google/callback?access_token={at}&refresh_token={rt}")
 
 
 @router.post("/reset-password")

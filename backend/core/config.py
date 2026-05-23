@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM: str = "TypeRek <onboarding@resend.dev>"
     FRONTEND_URL: str = "https://typerek-ngk.vercel.app"
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

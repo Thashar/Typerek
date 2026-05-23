@@ -16,6 +16,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
 import ResendVerification from './pages/ResendVerification'
+import GoogleCallback from './pages/GoogleCallback'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/resend-verification" element={<ResendVerification />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Matches />} />
           <Route path="/worldcup" element={<WorldCup />} />
