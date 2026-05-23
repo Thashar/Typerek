@@ -2,6 +2,7 @@ import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-route
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { getLive } from '../api/matches'
+import { getSettings } from '../api/settings'
 import api from '../api/client'
 import SplashScreen from './SplashScreen'
 
@@ -56,7 +57,15 @@ function useChatUnread(userId) {
 export default function Layout() {
   const { user, loading } = useAuth()
   const unreadChat = useChatUnread(user?.id)
-  const nav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
+
+  const { data: settings } = useQuery({
+    queryKey: ['game-settings'],
+    queryFn: getSettings,
+  })
+
+  const chatVisible = user?.is_admin || settings?.chat_enabled !== false
+  const allNav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
+  const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 
   if (loading) return <SplashScreen />
 

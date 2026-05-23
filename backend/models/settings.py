@@ -17,6 +17,7 @@ class GameSettings(Base):
     points_outcome: Mapped[int] = mapped_column(Integer, default=2)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     world_cup_only: Mapped[bool] = mapped_column(default=False, server_default="false")
+    chat_enabled: Mapped[bool] = mapped_column(default=True, server_default="true")
 
     @classmethod
     def get(cls, db: Session) -> "GameSettings":

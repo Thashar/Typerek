@@ -13,6 +13,7 @@ class SettingsUpdate(BaseModel):
     points_exact: int
     points_outcome: int
     world_cup_only: bool = False
+    chat_enabled: bool = True
 
 
 @router.get("")
@@ -22,6 +23,7 @@ def get_settings(db: Session = Depends(get_db)):
         "points_exact": s.points_exact,
         "points_outcome": s.points_outcome,
         "world_cup_only": s.world_cup_only,
+        "chat_enabled": s.chat_enabled,
         "last_synced_at": s.last_synced_at.isoformat() if s.last_synced_at else None,
     }
 
@@ -32,6 +34,12 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db), _: User
     s.points_exact = max(1, body.points_exact)
     s.points_outcome = max(0, body.points_outcome)
     s.world_cup_only = body.world_cup_only
+    s.chat_enabled = body.chat_enabled
     db.commit()
     GameSettings.invalidate_cache()
-    return {"points_exact": s.points_exact, "points_outcome": s.points_outcome, "world_cup_only": s.world_cup_only}
+    return {
+        "points_exact": s.points_exact,
+        "points_outcome": s.points_outcome,
+        "world_cup_only": s.world_cup_only,
+        "chat_enabled": s.chat_enabled,
+    }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
@@ -6,12 +6,20 @@ from core.database import get_db
 from routers.deps import get_current_user
 from models.user import User
 from models.chat import ChatMessage
+from models.private_league import PrivateLeagueMember
+from models.settings import GameSettings
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
+def _get_user_league_id(db: Session, user_id: int) -> int | None:
+    m = db.query(PrivateLeagueMember).filter(PrivateLeagueMember.user_id == user_id).first()
+    return m.league_id if m else None
+
+
 class SendMessageRequest(BaseModel):
     content: str
+    league_id: int | None = None
 
 
 class ChatMessageResponse(BaseModel):
@@ -27,16 +35,26 @@ class ChatMessageResponse(BaseModel):
 
 @router.get("/messages", response_model=list[ChatMessageResponse])
 def get_messages(
+    league_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    msgs = (
-        db.query(ChatMessage)
-        .options(joinedload(ChatMessage.user))
-        .order_by(ChatMessage.created_at.desc())
-        .limit(100)
-        .all()
-    )
+    s = GameSettings.get(db)
+    if not s.chat_enabled and not current_user.is_admin:
+        return []
+
+    if current_user.is_admin:
+        effective_league_id = league_id
+    else:
+        effective_league_id = _get_user_league_id(db, current_user.id)
+
+    q = db.query(ChatMessage).options(joinedload(ChatMessage.user))
+    if effective_league_id is not None:
+        q = q.filter(ChatMessage.league_id == effective_league_id)
+    else:
+        q = q.filter(ChatMessage.league_id.is_(None))
+
+    msgs = q.order_by(ChatMessage.created_at.desc()).limit(100).all()
     msgs.reverse()
     return [
         {
@@ -57,13 +75,22 @@ def send_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    s = GameSettings.get(db)
+    if not s.chat_enabled and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Czat jest wyłączony")
+
     content = body.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Wiadomość nie może być pusta")
     if len(content) > 500:
         raise HTTPException(status_code=400, detail="Wiadomość za długa (max 500 znaków)")
 
-    msg = ChatMessage(user_id=current_user.id, content=content)
+    if current_user.is_admin and body.league_id is not None:
+        league_id = body.league_id
+    else:
+        league_id = _get_user_league_id(db, current_user.id)
+
+    msg = ChatMessage(user_id=current_user.id, league_id=league_id, content=content)
     db.add(msg)
     db.commit()
     db.refresh(msg)

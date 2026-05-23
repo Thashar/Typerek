@@ -399,6 +399,29 @@ export default function Admin() {
 
       {/* Czat */}
       <Section title="💬 Czat">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm font-medium text-white">Czat</span>
+            {gameSettings?.chat_enabled === false
+              ? <span className="ml-2 text-xs bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">wyłączony</span>
+              : <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">aktywny</span>
+            }
+          </div>
+          <button
+            onClick={() => {
+              const newVal = gameSettings?.chat_enabled === false ? true : false
+              updateSettings({
+                points_exact: parseInt(pointsExact) || gameSettings?.points_exact,
+                points_outcome: parseInt(pointsOutcome) || gameSettings?.points_outcome,
+                world_cup_only: worldCupOnly,
+                chat_enabled: newVal,
+              }).then(() => queryClient.invalidateQueries({ queryKey: ['game-settings'] }))
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${gameSettings?.chat_enabled !== false ? 'bg-green-500' : 'bg-gray-600'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${gameSettings?.chat_enabled !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
         <p className="text-xs text-gray-400">Usuwa wszystkie wiadomości z czatu</p>
         {clearChatConfirm ? (
           <div className="flex items-center gap-2">
