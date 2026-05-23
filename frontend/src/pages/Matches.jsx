@@ -37,7 +37,8 @@ export default function Matches() {
     } else if (isLiveMode) {
       setSelectedLeague(leagues.length > 0 ? leagues[0].id : null)
     }
-  }, [searchParams, isLiveMode, leagues])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const { data: leagues = [] } = useQuery({
     queryKey: ['match-leagues'],
