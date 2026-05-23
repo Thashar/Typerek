@@ -190,7 +190,7 @@ function MatchCard({ match, prediction }) {
               <button
                 onClick={() => mutation.mutate()}
                 disabled={home === '' || away === '' || mutation.isPending}
-                className="ml-auto px-4 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 rounded-lg text-sm font-semibold transition"
+                className="ml-auto px-4 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-40 rounded-lg text-sm font-semibold transition"
               >
                 {mutation.isPending ? '...' : saved ? 'Zmień' : 'Typuj'}
               </button>
