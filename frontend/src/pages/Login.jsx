@@ -34,7 +34,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-brand-500">⚽ Typerek</h1>
+          <h1 className="text-4xl font-bold">⚽ <span className="text-white">Type</span><span className="text-brand-500">rek</span></h1>
           <p className="text-gray-400 mt-2">Typuj wyniki. Rywalizuj. Wygrywaj.</p>
         </div>
         <form onSubmit={handle} className="bg-gray-900 rounded-2xl p-8 space-y-5 shadow-xl">
