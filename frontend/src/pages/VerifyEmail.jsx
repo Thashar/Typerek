@@ -18,7 +18,7 @@ export default function VerifyEmail() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md text-center space-y-6">
-        <h1 className="text-4xl font-bold text-brand-500">⚽ Typerek</h1>
+        <h1 className="text-4xl font-bold">⚽ <span className="text-white">Type</span><span className="text-brand-500">Rek</span></h1>
 
         {status === 'loading' && (
           <p className="text-gray-400">Weryfikacja adresu e-mail...</p>

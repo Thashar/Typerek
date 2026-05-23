@@ -37,7 +37,7 @@ export default function SplashScreen() {
 
           <div className="text-center space-y-1">
             <h1 className="text-3xl font-black tracking-tight text-white">
-              Type<span className="text-brand-500">rek</span>
+              Type<span className="text-brand-500">Rek</span>
             </h1>
             <p className="text-gray-600 text-xs tracking-widest uppercase">Typuj · Rywalizuj · Wygrywaj</p>
           </div>

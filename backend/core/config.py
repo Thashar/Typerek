@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     FOOTBALL_DATA_API_KEY: str = ""
     CRON_SECRET: str = ""
     RESEND_API_KEY: str = ""
-    RESEND_FROM: str = "Typerek <onboarding@resend.dev>"
+    RESEND_FROM: str = "TypeRek <onboarding@resend.dev>"
     FRONTEND_URL: str = "https://typerek-ngk.vercel.app"
 
     @field_validator("DATABASE_URL", mode="before")
