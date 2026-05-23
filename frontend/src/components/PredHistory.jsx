@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { format, parseISO } from 'date-fns'
@@ -128,7 +128,7 @@ function groupByDayAndLeague(predictions) {
 export function GroupedPredHistory({ predictions }) {
   const [expanded, setExpanded] = useState({})
   const toggle = (day) => setExpanded(e => ({ ...e, [day]: !e[day] }))
-  const groups = groupByDayAndLeague(predictions)
+  const groups = useMemo(() => groupByDayAndLeague(predictions), [predictions])
 
   if (predictions.length === 0) {
     return <p className="text-gray-500 text-center py-8">Brak typów</p>

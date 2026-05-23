@@ -30,4 +30,5 @@ def update_settings(body: SettingsUpdate, db: Session = Depends(get_db), _: User
     s.points_exact = max(1, body.points_exact)
     s.points_outcome = max(0, body.points_outcome)
     db.commit()
+    GameSettings.invalidate_cache()
     return {"points_exact": s.points_exact, "points_outcome": s.points_outcome}

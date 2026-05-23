@@ -77,6 +77,7 @@ export default function Matches() {
     queryFn: getLive,
     enabled: isLiveMode,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   })
 
   const { data, isLoading } = useQuery({
@@ -84,6 +85,7 @@ export default function Matches() {
     queryFn: () => getMatches({ from_date: selectedDate, to_date: selectedDate, league_id: selectedLeague }),
     enabled: !!selectedDate && !!selectedLeague && !isLiveMode,
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   })
 
   const { data: predsData } = useQuery({
@@ -91,6 +93,7 @@ export default function Matches() {
     queryFn: myPredictions,
     enabled: !!user,
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   })
 
   const predMap = {}

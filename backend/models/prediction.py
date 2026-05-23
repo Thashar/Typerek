@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Integer, DateTime, ForeignKey, String
+from sqlalchemy import Index, Integer, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
@@ -10,9 +10,11 @@ POINTS_EXACT = 5
 class Prediction(Base):
     __tablename__ = "predictions"
 
+    __table_args__ = (Index("ix_prediction_user_match", "user_id", "match_id"),)
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), nullable=False, index=True)
 
     predicted_home: Mapped[int] = mapped_column(Integer, nullable=False)
     predicted_away: Mapped[int] = mapped_column(Integer, nullable=False)

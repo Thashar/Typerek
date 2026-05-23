@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { globalRanking, liveRankingChanges } from '../api/ranking'
@@ -13,27 +14,30 @@ export default function Ranking() {
     queryKey: ['ranking-live-changes'],
     queryFn: liveRankingChanges,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
 
   const rawEntries = data?.entries ?? []
   const hasLive = liveData?.has_live ?? false
-  const liveMap = Object.fromEntries((liveData?.changes ?? []).map(c => [c.user_id, c]))
 
-  // Podczas live: przelicz punkty z extra i posortuj od nowa
-  const entries = hasLive
-    ? [...rawEntries]
-        .map(e => ({
-          ...e,
-          total_points: e.total_points + (liveMap[e.user_id]?.projected_extra_points ?? 0),
-        }))
-        .sort((a, b) => b.total_points - a.total_points)
-        .map((e, idx) => ({
-          ...e,
-          rank: idx + 1,
-          rank_change: (rawEntries.find(o => o.user_id === e.user_id)?.rank ?? idx + 1) - (idx + 1),
-        }))
-    : rawEntries
+  const entries = useMemo(() => {
+    if (!hasLive) return rawEntries
+    const liveMap = Object.fromEntries((liveData?.changes ?? []).map(c => [c.user_id, c]))
+    const rawRankMap = Object.fromEntries(rawEntries.map(e => [e.user_id, e.rank]))
+    return [...rawEntries]
+      .map(e => ({
+        ...e,
+        projected_extra_points: liveMap[e.user_id]?.projected_extra_points ?? 0,
+        total_points: e.total_points + (liveMap[e.user_id]?.projected_extra_points ?? 0),
+      }))
+      .sort((a, b) => b.total_points - a.total_points)
+      .map((e, idx) => ({
+        ...e,
+        rank: idx + 1,
+        rank_change: (rawRankMap[e.user_id] ?? idx + 1) - (idx + 1),
+      }))
+  }, [rawEntries, hasLive, liveData])
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -51,7 +55,7 @@ export default function Ranking() {
           const rankChange = hasLive ? (entry.rank_change ?? 0) : 0
           const movingUp = rankChange > 0
           const movingDown = rankChange < 0
-          const hasLivePoints = hasLive && (liveMap[entry.user_id]?.projected_extra_points ?? 0) > 0
+          const hasLivePoints = hasLive && (entry.projected_extra_points ?? 0) > 0
 
           const ringClass = movingUp
             ? 'ring-2 ring-green-500'

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from core.database import get_db
 from routers.deps import get_admin_user
@@ -33,20 +34,36 @@ def admin_users(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    users = db.query(User).order_by(User.id).all()
+    rows = (
+        db.query(
+            User.id,
+            User.username,
+            User.email,
+            User.is_admin,
+            User.is_active,
+            User.is_ranked,
+            User.is_verified,
+            User.created_at,
+            func.coalesce(func.sum(Prediction.points), 0).label("total_points"),
+        )
+        .outerjoin(Prediction, Prediction.user_id == User.id)
+        .group_by(User.id)
+        .order_by(User.id)
+        .all()
+    )
     return [
         {
-            "id": u.id,
-            "username": u.username,
-            "email": u.email,
-            "is_admin": u.is_admin,
-            "is_active": u.is_active,
-            "is_ranked": u.is_ranked,
-            "is_verified": u.is_verified,
-            "total_points": u.total_points,
-            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "id": r.id,
+            "username": r.username,
+            "email": r.email,
+            "is_admin": r.is_admin,
+            "is_active": r.is_active,
+            "is_ranked": r.is_ranked,
+            "is_verified": r.is_verified,
+            "total_points": int(r.total_points),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
         }
-        for u in users
+        for r in rows
     ]
 
 
@@ -127,7 +144,6 @@ def reset_all_points(
 ):
     from sqlalchemy import text
     db.execute(text("UPDATE predictions SET points = NULL"))
-    db.execute(text("UPDATE users SET total_points = 0"))
     db.commit()
     return {"detail": "ok"}
 

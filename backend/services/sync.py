@@ -1,5 +1,5 @@
 from datetime import date, timedelta, datetime, timezone
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from models.league import League
 from models.match import Match, MatchStatus
 from models.prediction import Prediction
@@ -60,6 +60,24 @@ async def sync_bulk_to_end_of_year(db: Session) -> int:
 
 async def update_live_and_recent(db: Session) -> int:
     """Aktualizuje wyniki meczy live i zakonczonych w ostatnich 2h."""
+    from sqlalchemy import or_, and_
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_start = now - timedelta(hours=3)
+
+    has_active = db.query(Match).filter(
+        or_(
+            Match.status == MatchStatus.LIVE,
+            and_(
+                Match.kickoff <= now,
+                Match.kickoff >= window_start,
+                Match.status.notin_([MatchStatus.FINISHED, MatchStatus.CANCELLED, MatchStatus.POSTPONED]),
+            ),
+        )
+    ).limit(1).first()
+
+    if not has_active:
+        return 0
+
     fixtures = await football_api.fetch_live_fixtures()
 
     recent = db.query(Match).filter(
@@ -67,7 +85,12 @@ async def update_live_and_recent(db: Session) -> int:
     ).all()
     if recent:
         ids = [m.api_id for m in recent]
-        finished_data = await football_api.fetch_fixtures_by_ids(ids)
+        # Resolve competition codes from league api_ids to avoid querying all competitions
+        api_id_to_code = {v["id"]: k for k, v in football_api.COMPETITIONS.items()}
+        league_ids = {m.league_id for m in recent}
+        leagues = db.query(League).filter(League.id.in_(league_ids)).all()
+        comp_codes = list({api_id_to_code[l.api_id] for l in leagues if l.api_id in api_id_to_code})
+        finished_data = await football_api.fetch_fixtures_by_ids(ids, comp_codes or None)
         fixtures += finished_data
 
     updated = 0
@@ -155,18 +178,20 @@ def _get_or_create_league(db: Session, data: dict) -> League:
 
 def _calculate_points_for_finished(db: Session) -> None:
     from models.settings import GameSettings
-    gs = GameSettings.get(db)
+    points_exact, points_outcome = GameSettings.get_points(db)
 
-    finished = db.query(Match).filter(
-        Match.status == MatchStatus.FINISHED,
-        Match.home_score.isnot(None),
-        Match.away_score.isnot(None),
-    ).all()
-
-    for match in finished:
-        unscored = db.query(Prediction).filter(
-            Prediction.match_id == match.id,
+    unscored = (
+        db.query(Prediction)
+        .join(Match, Prediction.match_id == Match.id)
+        .filter(
+            Match.status == MatchStatus.FINISHED,
+            Match.home_score.isnot(None),
+            Match.away_score.isnot(None),
             Prediction.points.is_(None),
-        ).all()
-        for pred in unscored:
-            pred.points = pred.calculate_points(match.home_score, match.away_score, gs.points_exact, gs.points_outcome)
+        )
+        .options(joinedload(Prediction.match))
+        .all()
+    )
+    for pred in unscored:
+        m = pred.match
+        pred.points = pred.calculate_points(m.home_score, m.away_score, points_exact, points_outcome)

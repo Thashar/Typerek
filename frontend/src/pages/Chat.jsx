@@ -36,7 +36,8 @@ export default function Chat() {
   const { data: messages = [] } = useQuery({
     queryKey: ['chat-messages'],
     queryFn: getMessages,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
 
