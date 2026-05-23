@@ -70,9 +70,9 @@ function LeaguesSection({ queryClient }) {
       <div className="flex gap-2">
         <input
           className="flex-1 bg-gray-700 rounded-lg px-3 py-2 text-sm font-mono uppercase outline-none focus:ring-2 focus:ring-brand-500 tracking-widest"
-          placeholder="KOD LIGI (np. RODZINA2025)"
+          placeholder="NAZWA LIGI (np. LIGA NGK 2025)"
           value={newCode}
-          onChange={e => setNewCode(e.target.value.toUpperCase())}
+          onChange={e => setNewCode(e.target.value.toUpperCase().replace(/\s{2,}/g, ' '))}
           onKeyDown={e => e.key === 'Enter' && newCode.trim() && createMut.mutate()}
         />
         <button

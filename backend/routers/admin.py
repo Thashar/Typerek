@@ -255,8 +255,8 @@ def admin_create_league(
     current_user: User = Depends(get_admin_user),
 ):
     code = body.code.strip().upper()
-    if not re.match(r'^[A-Z0-9]{3,20}$', code):
-        raise HTTPException(status_code=400, detail="Kod może zawierać tylko litery i cyfry (3–20 znaków)")
+    if not re.match(r'^[A-Z0-9 ]{3,30}$', code) or code.strip() != code:
+        raise HTTPException(status_code=400, detail="Nazwa może zawierać litery, cyfry i spacje (3–30 znaków, bez spacji na początku/końcu)")
     if db.query(PrivateLeague).filter(PrivateLeague.invite_code == code).first():
         raise HTTPException(status_code=400, detail="Liga z tym kodem już istnieje")
     league = PrivateLeague(name=code, invite_code=code, owner_id=current_user.id)
