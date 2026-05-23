@@ -35,7 +35,7 @@ export default function Matches() {
     } else if (isLiveMode) {
       setSelectedLeague(leagues.length > 0 ? leagues[0].id : null)
     }
-  }, [searchParams, leagues, isLiveMode])
+  }, [searchParams])
 
   const { data: leagues = [] } = useQuery({
     queryKey: ['match-leagues'],
