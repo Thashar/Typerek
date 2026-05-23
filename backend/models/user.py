@@ -13,7 +13,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False, server_default="true")
+    is_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False, server_default="false")
     is_ranked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     avatar: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))

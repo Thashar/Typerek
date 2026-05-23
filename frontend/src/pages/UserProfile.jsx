@@ -4,8 +4,11 @@ import { userPredictions } from '../api/predictions'
 import { globalRanking } from '../api/ranking'
 import { GroupedPredHistory } from '../components/PredHistory'
 import PageLoader from '../components/PageLoader'
+import UserAvatar from '../components/UserAvatar'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function UserProfile() {
+  usePageTitle('Profil gracza')
   const { userId } = useParams()
   const navigate = useNavigate()
   const id = parseInt(userId)
@@ -26,12 +29,7 @@ export default function UserProfile() {
 
       {entry && (
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 shrink-0 flex items-center justify-center">
-            {entry.avatar
-              ? <img src={entry.avatar} className="w-full h-full object-cover" alt="" />
-              : <span className="text-sm font-bold text-gray-400">{entry.username.slice(0, 2).toUpperCase()}</span>
-            }
-          </div>
+          <UserAvatar username={entry.username} avatar={entry.avatar} className="w-12 h-12" />
           <div>
             <div className="font-bold text-white text-lg">{entry.username}</div>
             <div className="text-sm text-brand-400 font-semibold">{entry.total_points} pkt</div>

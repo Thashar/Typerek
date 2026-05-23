@@ -21,8 +21,8 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def password_valid(cls, v: str) -> str:
-        if len(v) < 6:
-            raise ValueError("Hasło musi mieć minimum 6 znaków")
+        if len(v) < 8:
+            raise ValueError("Hasło musi mieć minimum 8 znaków")
         return v
 
 

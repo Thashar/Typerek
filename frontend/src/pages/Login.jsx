@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Login() {
+  usePageTitle('Logowanie')
   const { login, user } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', password: '' })
@@ -55,6 +57,7 @@ export default function Login() {
               className="w-full bg-gray-800 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-500"
               value={form.username}
               onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+              autoComplete="username"
               required
             />
           </div>
@@ -65,6 +68,7 @@ export default function Login() {
               className="w-full bg-gray-800 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-500"
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              autoComplete="current-password"
               required
             />
           </div>

@@ -9,6 +9,7 @@ import { myPredictions } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 import MatchCard from '../components/MatchCard'
 import PageLoader from '../components/PageLoader'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const LIVE_KEY = 'LIVE'
 
@@ -21,6 +22,7 @@ function formatDateBtn(dateStr) {
 }
 
 export default function Matches() {
+  usePageTitle('Mecze')
   const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const [selectedLeague, setSelectedLeague] = useState(searchParams.get('live') === '1' ? LIVE_KEY : null)
@@ -35,7 +37,7 @@ export default function Matches() {
     } else if (isLiveMode) {
       setSelectedLeague(leagues.length > 0 ? leagues[0].id : null)
     }
-  }, [searchParams])
+  }, [searchParams, isLiveMode, leagues])
 
   const { data: leagues = [] } = useQuery({
     queryKey: ['match-leagues'],
@@ -176,11 +178,13 @@ export default function Matches() {
         <>
           <div className="flex items-center justify-between">
             <button onClick={prevDate} disabled={dates.indexOf(selectedDate) === 0}
+              aria-label="Poprzedni dzień"
               className="p-2 hover:bg-gray-800 rounded-lg transition disabled:opacity-30">‹</button>
             <span className="text-sm font-semibold capitalize text-gray-300">
               {selectedDate ? format(parseISO(selectedDate), 'EEEE, d MMMM yyyy', { locale: pl }) : ''}
             </span>
             <button onClick={nextDate} disabled={dates.indexOf(selectedDate) === dates.length - 1}
+              aria-label="Następny dzień"
               className="p-2 hover:bg-gray-800 rounded-lg transition disabled:opacity-30">›</button>
           </div>
 

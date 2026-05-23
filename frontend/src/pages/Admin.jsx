@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { getSettings, updateSettings } from '../api/settings'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 function LeaguesSection({ queryClient }) {
   const [newCode, setNewCode] = useState('')
@@ -212,6 +213,7 @@ function UserRow({ u, currentUserId, leagues, onChanged }) {
 }
 
 export default function Admin() {
+  usePageTitle('Panel admina')
   const { user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

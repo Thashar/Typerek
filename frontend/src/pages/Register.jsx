@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Register() {
+  usePageTitle('Rejestracja')
   const { register } = useAuth()
   const [form, setForm] = useState({ username: '', email: '', password: '', invite_code: '' })
   const [agreedToRodo, setAgreedToRodo] = useState(false)
@@ -73,6 +75,7 @@ export default function Register() {
                   className="w-full bg-gray-800 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-500"
                   value={form.username}
                   onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                  autoComplete="username"
                   required minLength={3} maxLength={50}
                 />
                 <p className="text-xs text-gray-500 mt-1">Tylko litery (a–z, A–Z), cyfry i znak podkreślenia _</p>
@@ -84,6 +87,7 @@ export default function Register() {
                   className="w-full bg-gray-800 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-500"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  autoComplete="email"
                   required
                 />
               </div>
@@ -94,8 +98,10 @@ export default function Register() {
                   className="w-full bg-gray-800 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-500"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  required minLength={6}
+                  autoComplete="new-password"
+                  required minLength={8}
                 />
+                <p className="text-xs text-gray-500 mt-1">Minimum 8 znaków</p>
               </div>
               <div className="flex items-start gap-3">
                 <input
@@ -108,7 +114,9 @@ export default function Register() {
                 />
                 <label htmlFor="rodo" className="text-xs text-gray-400 leading-relaxed">
                   Rejestrując się, akceptuję przetwarzanie danych osobowych (adres e-mail, nazwa użytkownika)
-                  w celu świadczenia usługi typowania meczów zgodnie z RODO. Dane nie są udostępniane osobom trzecim.
+                  w celu świadczenia usługi typowania meczów zgodnie z RODO. Do wysyłki maili korzystamy
+                  z serwisu Resend. Więcej informacji:{' '}
+                  <a href="/privacy" className="text-brand-400 hover:underline">Polityka prywatności</a>.
                 </label>
               </div>
               <button

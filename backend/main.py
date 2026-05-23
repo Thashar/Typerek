@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from core.database import engine, Base
 from core.config import settings
+from core.limiter import limiter
 
 import models.user
 import models.league
@@ -15,6 +18,8 @@ import models.chat
 from routers import auth, matches, cron, predictions, ranking, leagues, debug, admin, game_settings, users, chat
 
 app = FastAPI(title="Typerek API", version="0.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _cors_origins = list({
     settings.FRONTEND_URL,

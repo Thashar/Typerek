@@ -4,7 +4,8 @@
       "WebFetch(domain:typetek-ngk.vercel.app)",
       "WebFetch(domain:typerek-ngk.pl)",
       "Bash(npx vercel *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Thash\\\\Desktop\\\\Bots\\\\Typerek\" -Recurse -File)"
     ]
   }
 }

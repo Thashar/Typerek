@@ -4,19 +4,11 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import { getSettings } from '../api/settings'
-
-function Avatar({ username, avatar }) {
-  return (
-    <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-700 shrink-0 flex items-center justify-center">
-      {avatar
-        ? <img src={avatar} className="w-full h-full object-cover" alt="" />
-        : <span className="text-xs font-bold text-gray-400">{username.slice(0, 2).toUpperCase()}</span>
-      }
-    </div>
-  )
-}
+import { usePageTitle } from '../hooks/usePageTitle'
+import UserAvatar from '../components/UserAvatar'
 
 export default function Chat() {
+  usePageTitle('Chat')
   const { user } = useAuth()
   const qc = useQueryClient()
   const bottomRef = useRef(null)
@@ -165,7 +157,7 @@ export default function Chat() {
                     </div>
                   )}
                   <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <Avatar username={msg.username} avatar={msg.avatar} />
+                    <UserAvatar username={msg.username} avatar={msg.avatar} className="w-7 h-7" />
                     <div className={`flex flex-col max-w-[72%] ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && <span className="text-xs text-gray-500 mb-0.5 ml-1">{msg.username}</span>}
                       <div className={`px-3 py-2 text-sm break-words rounded-2xl ${

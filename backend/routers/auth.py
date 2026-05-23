@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import re
 import secrets
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -10,10 +10,13 @@ import httpx
 from core.database import get_db
 from core.config import settings
 from core.security import hash_password, create_access_token, create_refresh_token
+from core.limiter import limiter
+from core.email import send_verification_email, send_reset_email
 from schemas.user import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, UserResponse
 from services.auth import register_user, login_user, refresh_tokens
 from routers.deps import get_current_user
 from models.user import User
+from models.private_league import PrivateLeague, PrivateLeagueMember
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -32,7 +35,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
     user = register_user(db, body.username, body.email, body.password, body.invite_code)
 
     expire = datetime.now(timezone.utc) + timedelta(hours=24)
@@ -42,7 +46,6 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         algorithm=settings.ALGORITHM,
     )
     try:
-        from core.email import send_verification_email
         send_verification_email(user.email, token)
     except Exception:
         pass
@@ -50,9 +53,9 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     return user
 
 
-
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     tokens = login_user(db, body.username, body.password)
     return tokens
 
@@ -87,8 +90,8 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/resend-verification")
-def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    from core.email import send_verification_email
+@limiter.limit("3/minute")
+def resend_verification(request: Request, body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if user and not user.is_verified:
         expire = datetime.now(timezone.utc) + timedelta(hours=24)
@@ -105,8 +108,8 @@ def resend_verification(body: ForgotPasswordRequest, db: Session = Depends(get_d
 
 
 @router.post("/forgot-password")
-def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    from core.email import send_reset_email
+@limiter.limit("3/minute")
+def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if user:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
@@ -228,7 +231,6 @@ def google_complete(body: GoogleCompleteRequest, db: Session = Depends(get_db)):
             "refresh_token": create_refresh_token({"sub": str(user.id)}),
         }
 
-    from models.private_league import PrivateLeague, PrivateLeagueMember
     league = db.query(PrivateLeague).filter(
         PrivateLeague.invite_code == body.invite_code.strip().upper()
     ).first()
@@ -269,8 +271,8 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły link resetujący")
     if payload.get("type") != "password_reset":
         raise HTTPException(status_code=400, detail="Nieprawidłowy token")
-    if len(body.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Hasło musi mieć co najmniej 6 znaków")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Hasło musi mieć co najmniej 8 znaków")
     user = db.query(User).filter(User.email == payload["sub"]).first()
     if not user:
         raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")

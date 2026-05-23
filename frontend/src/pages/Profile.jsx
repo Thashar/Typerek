@@ -6,6 +6,7 @@ import { getSettings } from '../api/settings'
 import { useAuth } from '../context/AuthContext'
 import { GroupedPredHistory } from '../components/PredHistory'
 import api from '../api/client'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const POINTS_EXACT_DEFAULT = 5
 const POINTS_OUTCOME_DEFAULT = 2
@@ -99,16 +100,20 @@ function ChangeUsernameForm({ username, email, onUpdated }) {
 function Avatar({ user, onUpdated }) {
   const fileRef = useRef(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const initials = (user?.username ?? '?').slice(0, 2).toUpperCase()
 
   const handleFile = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     setLoading(true)
+    setError('')
     try {
       const base64 = await resizeToBase64(file)
       await api.put('/users/me/avatar', { avatar: base64 })
       onUpdated()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Błąd wgrywania awatara')
     } finally {
       setLoading(false)
       e.target.value = ''
@@ -151,11 +156,13 @@ function Avatar({ user, onUpdated }) {
         >×</button>
       )}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      {error && <p className="absolute top-full mt-1 text-red-400 text-xs whitespace-nowrap">{error}</p>}
     </div>
   )
 }
 
 export default function Profile() {
+  usePageTitle('Profil')
   const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [deleteConfirm, setDeleteConfirm] = useState(false)

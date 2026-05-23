@@ -3,11 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import PageLoader from '../components/PageLoader'
+import UserAvatar from '../components/UserAvatar'
 import api from '../api/client'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
 export default function Ranking() {
+  usePageTitle('Ranking')
   const { user } = useAuth()
   const navigate = useNavigate()
   const [selectedLeagueId, setSelectedLeagueId] = useState(null)
@@ -27,7 +30,7 @@ export default function Ranking() {
 
   useEffect(() => {
     if (!selectedLeagueId && myLeague) setSelectedLeagueId(myLeague.id)
-  }, [myLeague])
+  }, [myLeague, selectedLeagueId])
 
   const leagueId = selectedLeagueId ?? myLeague?.id
 
@@ -62,9 +65,9 @@ export default function Ranking() {
             <button
               key={l.id}
               onClick={() => setSelectedLeagueId(l.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-mono font-medium transition ${selectedLeagueId === l.id ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${selectedLeagueId === l.id ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
             >
-              {l.invite_code}
+              {l.name || l.invite_code}
             </button>
           ))}
         </div>
@@ -83,6 +86,7 @@ export default function Ranking() {
             <div key={entry.user_id} className={`bg-gray-900 rounded-xl overflow-hidden ${isMe ? 'ring-2 ring-brand-500' : ''}`}>
               <button
                 onClick={() => navigate(`/user/${entry.user_id}`)}
+                aria-label={`Profil gracza ${entry.username}`}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/50 transition text-left"
               >
                 <span className="w-8 text-center font-bold text-lg shrink-0">
@@ -90,12 +94,7 @@ export default function Ranking() {
                 </span>
 
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0 flex items-center justify-center">
-                    {entry.avatar
-                      ? <img src={entry.avatar} className="w-full h-full object-cover" alt="" />
-                      : <span className="text-xs font-bold text-gray-400">{entry.username.slice(0, 2).toUpperCase()}</span>
-                    }
-                  </div>
+                  <UserAvatar username={entry.username} avatar={entry.avatar} />
                   <span className={`font-semibold ${isMe ? 'text-brand-400' : ''}`}>
                     {entry.username} {isMe && <span className="text-xs text-gray-400">(Ty)</span>}
                   </span>

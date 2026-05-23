@@ -30,6 +30,7 @@ function LiveIndicator() {
       onClick={() => navigate('/?live=1')}
       className={`flex items-center gap-1.5 text-xs font-semibold transition ${hasLive ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-500'}`}
       title={hasLive ? `${data.total} mecz${data.total === 1 ? '' : data.total < 5 ? 'e' : 'ów'} na żywo` : 'Brak meczów na żywo'}
+      aria-label={hasLive ? `${data.total} meczów na żywo — pokaż` : 'Brak meczów na żywo'}
     >
       <span className={`inline-block w-2 h-2 rounded-full ${hasLive ? 'bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.8)] animate-pulse' : 'bg-gray-600'}`} />
       Na żywo
@@ -87,13 +88,14 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <nav className="shrink-0 bg-gray-900 border-t border-gray-800 z-40">
+      <nav className="shrink-0 bg-gray-900 border-t border-gray-800 z-40" aria-label="Nawigacja główna">
         <div className="max-w-2xl mx-auto flex">
           {nav.map(({ to, label, chatBadge }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
+              aria-label={label.replace(/\p{Emoji}/gu, '').trim()}
               className={({ isActive }) =>
                 `flex-1 py-3 text-center text-xs font-medium transition ${isActive ? 'text-brand-400' : 'text-gray-500 hover:text-gray-300'}`
               }
