@@ -107,6 +107,7 @@ def get_private_league_ranking(db: Session, league_id: int) -> list[dict]:
         LEFT JOIN predictions p ON p.user_id = u.id
         WHERE plm.league_id = :league_id
           AND u.is_active = TRUE
+          AND u.is_ranked = TRUE
         GROUP BY u.id, u.username
         ORDER BY total_points DESC
     """), {"league_id": league_id, "exact": points_exact, "outcome": points_outcome}).fetchall()
