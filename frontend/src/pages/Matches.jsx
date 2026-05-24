@@ -114,8 +114,10 @@ export default function Matches() {
   const matches = isLiveMode ? filteredLiveMatches : (data?.matches ?? [])
   const loading = isLiveMode ? liveLoading : isLoading
 
-  // Live matches visible outside LIVE tab (excluding ones already shown)
-  const sidebarLiveMatches = isLiveMode ? [] : allLiveMatches
+  // Live matches visible outside LIVE tab — tylko z aktualnie wybranej ligi
+  const sidebarLiveMatches = isLiveMode
+    ? []
+    : allLiveMatches.filter(m => m.league.id === selectedLeague)
 
   const prevDate = () => {
     const idx = dates.indexOf(selectedDate)

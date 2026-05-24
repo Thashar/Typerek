@@ -15,6 +15,7 @@ export function useVersionCheck() {
       } catch {}
     }
 
+    check()
     const timer = setInterval(check, POLL_INTERVAL)
     return () => clearInterval(timer)
   }, [])
