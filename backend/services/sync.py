@@ -182,7 +182,7 @@ def _upsert_fixture(db: Session, f: dict) -> int:
             status_short = '2H'
             # Oszacuj start 2H: kickoff + 57 min (jeśli jeszcze nie ustawiony)
             if match.second_half_started_at is None:
-                match.second_half_started_at = kickoff + timedelta(minutes=57)
+                match.second_half_started_at = kickoff + timedelta(minutes=72)
 
     if status_short in ('1H', 'LIVE') and match.live_started_at is None:
         match.live_started_at = now
