@@ -79,16 +79,16 @@ export default function Matches() {
   const { data: liveData, isLoading: liveLoading } = useQuery({
     queryKey: ['matches-live'],
     queryFn: getLive,
-    enabled: isLiveMode,
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
+    staleTime: 0,
   })
 
   const { data, isLoading } = useQuery({
     queryKey: ['matches', selectedLeague, selectedDate],
     queryFn: () => getMatches({ from_date: selectedDate, to_date: selectedDate, league_id: selectedLeague }),
     enabled: !!selectedDate && !!selectedLeague && !isLiveMode,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
   })
 
@@ -113,6 +113,9 @@ export default function Matches() {
 
   const matches = isLiveMode ? filteredLiveMatches : (data?.matches ?? [])
   const loading = isLiveMode ? liveLoading : isLoading
+
+  // Live matches visible outside LIVE tab (excluding ones already shown)
+  const sidebarLiveMatches = isLiveMode ? [] : allLiveMatches
 
   const prevDate = () => {
     const idx = dates.indexOf(selectedDate)
@@ -205,6 +208,18 @@ export default function Matches() {
 
       {!isLiveMode && dates.length === 0 && selectedLeague && (
         <p className="text-center text-gray-500 py-8 text-sm">Brak nadchodzących meczów dla tej ligi</p>
+      )}
+
+      {sidebarLiveMatches.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-red-500 animate-pulse">● NA ŻYWO</span>
+          </div>
+          {sidebarLiveMatches.map(match => (
+            <MatchCard key={match.id} match={match} prediction={predMap[match.id]} />
+          ))}
+          <div className="border-t border-gray-800 pt-1" />
+        </div>
       )}
 
       {loading && <PageLoader />}
