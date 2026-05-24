@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { useAuth } from '../context/AuthContext'
@@ -18,6 +18,7 @@ export default function Chat() {
   const [selectedLeagueId, setSelectedLeagueId] = useState(null)
   const prevCountRef = useRef(0)
   const hasScrolledInitially = useRef(false)
+  const lastTypingSentRef = useRef(0)
 
   const initialLastReadId = useRef(
     parseInt(localStorage.getItem('chat_last_read') || '0')
@@ -54,6 +55,22 @@ export default function Chat() {
     refetchIntervalInBackground: false,
     staleTime: 0,
   })
+
+  const typingParams = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
+  const { data: typingUsers = [] } = useQuery({
+    queryKey: ['chat-typing', effectiveLeagueId ?? 'null'],
+    queryFn: () => api.get(`/chat/typing${typingParams}`).then(r => r.data),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+  })
+
+  const sendTyping = useCallback(() => {
+    const now = Date.now()
+    if (now - lastTypingSentRef.current < 3000) return
+    lastTypingSentRef.current = now
+    api.post(`/chat/typing${typingParams}`).catch(() => {})
+  }, [typingParams])
 
   useEffect(() => {
     hasScrolledInitially.current = false
@@ -176,13 +193,21 @@ export default function Chat() {
             <div ref={bottomRef} />
           </div>
 
+          {typingUsers.length > 0 && (
+            <p className="shrink-0 text-xs text-gray-500 pb-1">
+              {typingUsers.length === 1
+                ? `${typingUsers[0]} pisze...`
+                : `${typingUsers.slice(0, -1).join(', ')} i ${typingUsers.at(-1)} piszą...`}
+            </p>
+          )}
+
           <form onSubmit={handleSend} className="shrink-0 flex gap-2 py-3 border-t border-gray-800">
             <input
               ref={inputRef}
               className="flex-1 bg-gray-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500"
               placeholder={user?.is_admin && selectedLeagueId === null ? 'Wybierz ligę...' : 'Napisz wiadomość...'}
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={e => { setText(e.target.value); sendTyping() }}
               onKeyDown={handleKeyDown}
               maxLength={500}
               autoComplete="off"

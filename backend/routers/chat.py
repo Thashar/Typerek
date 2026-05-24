@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
 from routers.deps import get_current_user
 from models.user import User
-from models.chat import ChatMessage
+from models.chat import ChatMessage, ChatTyping
 from models.private_league import PrivateLeagueMember
 from models.settings import GameSettings
 
@@ -67,6 +67,52 @@ def get_messages(
         }
         for m in msgs
     ]
+
+
+@router.post("/typing", status_code=204)
+def update_typing(
+    league_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.is_admin:
+        effective_league_id = league_id
+    else:
+        effective_league_id = _get_user_league_id(db, current_user.id)
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    row = db.query(ChatTyping).filter(ChatTyping.user_id == current_user.id).first()
+    if row:
+        row.league_id = effective_league_id
+        row.typed_at = now
+    else:
+        db.add(ChatTyping(user_id=current_user.id, league_id=effective_league_id, typed_at=now))
+    db.commit()
+
+
+@router.get("/typing")
+def get_typing(
+    league_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.is_admin:
+        effective_league_id = league_id
+    else:
+        effective_league_id = _get_user_league_id(db, current_user.id)
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=5)
+    rows = (
+        db.query(ChatTyping)
+        .options(joinedload(ChatTyping.user))
+        .filter(
+            ChatTyping.user_id != current_user.id,
+            ChatTyping.typed_at >= cutoff,
+            ChatTyping.league_id == effective_league_id,
+        )
+        .all()
+    )
+    return [r.user.username for r in rows]
 
 
 @router.post("/messages", response_model=ChatMessageResponse, status_code=201)
