@@ -110,7 +110,10 @@ async def fetch_live_fixtures(codes: list[str] | None = None) -> list[dict]:
 
 
 async def fetch_fixtures_by_ids(fixture_ids: list[int], comp_codes: list[str] | None = None) -> list[dict]:
-    """Pobiera mecze po ID odpytując API po dacie (bez filtra statusu) — łapie też mecze w przejściowym stanie."""
+    """Pobiera mecze po ID. Najpierw odpytuje po kompetycji+dacie, a dla niezalezionych
+    meczy robi pojedyncze zapytania do /matches/{id} — to gwarantuje ze ostatni live'owy
+    mecz zawsze dostanie aktualny status, nawet jesli wypadnie z okna dat / kompetycji.
+    """
     from datetime import date, timedelta
     codes = comp_codes if comp_codes is not None else list(COMPETITIONS)
     id_set = set(fixture_ids)
@@ -125,4 +128,63 @@ async def fetch_fixtures_by_ids(fixture_ids: list[int], comp_codes: list[str] | 
             return []
 
     nested = await asyncio.gather(*[_fetch_one(code) for code in codes])
-    return [item for sublist in nested for item in sublist]
+    found = [item for sublist in nested for item in sublist]
+
+    found_ids = {f["fixture"]["id"] for f in found}
+    missing = [fid for fid in fixture_ids if fid not in found_ids]
+    if missing:
+        extra = await asyncio.gather(*[fetch_match_by_id(fid) for fid in missing])
+        found.extend(f for f in extra if f is not None)
+
+    return found
+
+
+async def fetch_match_by_id(fixture_id: int) -> dict | None:
+    """Pobiera pojedynczy mecz po ID — fallback gdy /competitions go nie zwraca."""
+    try:
+        data = await _get(f"/matches/{fixture_id}")
+    except Exception:
+        return None
+    match = data.get("match") if isinstance(data, dict) else None
+    if not match:
+        return None
+    comp = match.get("competition", {}) or {}
+    api_code = comp.get("code")
+    if api_code and api_code in COMPETITIONS:
+        return _to_fixture(match, api_code)
+    # Lokalna kopia _to_fixture dla kompetycji spoza COMPETITIONS — minimalna,
+    # gwarantuje ze status/scores dotra do _upsert_fixture (league_id juz w DB).
+    utc = match.get("utcDate", "")
+    try:
+        ts = int(datetime.fromisoformat(utc.replace("Z", "+00:00")).timestamp())
+    except Exception:
+        ts = 0
+    ft = match.get("score", {}).get("fullTime", {})
+    minute = match.get("minute")
+    return {
+        "fixture": {
+            "id": match["id"],
+            "timestamp": ts,
+            "status": {"short": _status_short(match.get("status", ""), minute), "elapsed": minute},
+        },
+        "league": {
+            "id": comp.get("id", 0),
+            "name": comp.get("name", ""),
+            "country": comp.get("area", {}).get("name", ""),
+            "logo": comp.get("emblem", ""),
+            "season": (match.get("season", {}) or {}).get("startDate", "")[:4] or 2026,
+        },
+        "teams": {
+            "home": {
+                "name": match.get("homeTeam", {}).get("name") or "TBD",
+                "logo": match.get("homeTeam", {}).get("crest", ""),
+            },
+            "away": {
+                "name": match.get("awayTeam", {}).get("name") or "TBD",
+                "logo": match.get("awayTeam", {}).get("crest", ""),
+            },
+        },
+        "goals": {"home": ft.get("home"), "away": ft.get("away")},
+        "stage": match.get("stage"),
+        "group": match.get("group"),
+    }

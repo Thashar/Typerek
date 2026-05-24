@@ -118,16 +118,9 @@ async def update_live_and_recent(db: Session) -> int:
     for f in fixtures:
         updated += _upsert_fixture(db, f)
 
-    # Zabezpieczenie: mecze ktore tkwia w statusie LIVE ponad 3h od kickoffu
-    # (np. API przestalo je zwracac albo uzylo niestandardowego statusu)
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
-    stuck = db.query(Match).filter(
-        Match.status == MatchStatus.LIVE,
-        Match.kickoff < cutoff,
-    ).all()
-    for match in stuck:
-        match.status = MatchStatus.FINISHED
-        updated += 1
+    # Brak auto-zamykania po czasie — status zmieniany tylko gdy potwierdzi go API.
+    # Fallback per-match (fetch_match_by_id w fetch_fixtures_by_ids) zapewnia, ze nawet
+    # ostatni live'owy mecz dostanie aktualny status, jesli API w ogole go zwraca.
 
     _calculate_points_for_finished(db)
     db.commit()
@@ -157,11 +150,7 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.home_team_logo = teams["home"].get("logo")
     match.away_team_logo = teams["away"].get("logo")
     parsed_status = _parse_status(status_short)
-    # Fallback: API mowi LIVE ale minelo 2.5h od kickoffu (90 min + przerwa + czas doliczony + margines)
-    if parsed_status == MatchStatus.LIVE:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2, minutes=30)
-        if kickoff < cutoff:
-            parsed_status = MatchStatus.FINISHED
+    # Status biezemy wylacznie z API — nie zamykamy meczu po czasie bez potwierdzenia.
 
     match.kickoff = kickoff
     match.status = parsed_status

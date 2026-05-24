@@ -68,12 +68,7 @@ function useLiveMinute(match) {
           return
         }
         const extra = elapsed - 45
-        // Sanity: po >30 min doliczonych traktujemy lokalnie jako zakonczony,
-        // backend dosynchronizuje finalny status w nastepnym cronie.
-        if (extra > 30) {
-          setState({ label: null, isHT: false, finished: true })
-          return
-        }
+        // Bez auto-zamykania — czekamy na API. Tylko pokazujemy doliczone minuty.
         setState({ label: `90' (+${extra}')`, isHT: false, finished: false })
         return
       }
@@ -142,19 +137,7 @@ function MatchCard({ match, prediction }) {
   const [away, setAway] = useState(prediction?.predicted_away ?? '')
   const [saved, setSaved] = useState(!!prediction)
 
-  const { label: liveLabel, isHT, finished: locallyFinished } = useLiveMinute(match)
-
-  // Gdy lokalnie wykryjemy ze mecz juz powinien byc po, popros o swiezsze dane
-  // zaleznych zapytan zeby header/ranking/historia przelaczyly sie razem z karta.
-  useEffect(() => {
-    if (!locallyFinished) return
-    qc.invalidateQueries({ queryKey: ['matches-live'] })
-    qc.invalidateQueries({ queryKey: ['matches'] })
-    qc.invalidateQueries({ queryKey: ['my-live-points'] })
-    qc.invalidateQueries({ queryKey: ['predictions'] })
-    qc.invalidateQueries({ queryKey: ['league-ranking'] })
-    qc.invalidateQueries({ queryKey: ['league-ranking-live'] })
-  }, [locallyFinished, qc])
+  const { label: liveLabel, isHT } = useLiveMinute(match)
 
   const mutation = useMutation({
     mutationFn: () => submitPrediction({ match_id: match.id, predicted_home: home, predicted_away: away }),
@@ -169,8 +152,8 @@ function MatchCard({ match, prediction }) {
   const dateStr = formatInTimeZone(kickoff, 'Europe/Warsaw', 'd MMM', { locale: pl })
 
   const pts = prediction?.points
-  const isLive = match.status === 'live' && !locallyFinished
-  const showAsFinished = match.status === 'finished' || locallyFinished
+  const isLive = match.status === 'live'
+  const showAsFinished = match.status === 'finished'
 
   return (
     <div className="bg-gray-900 rounded-2xl p-4 space-y-3">

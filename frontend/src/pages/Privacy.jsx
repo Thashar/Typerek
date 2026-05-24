@@ -14,8 +14,7 @@ export default function Privacy() {
         <h2 className="font-semibold text-white">1. Administrator danych</h2>
         <p>
           Administratorem danych osobowych jest właściciel serwisu TypeRek
-          dostępnego pod adresem <strong>typerek-ngk.pl</strong>. Kontakt w sprawie
-          danych osobowych: przez panel administracyjny serwisu.
+          dostępnego pod adresem <strong>typerek-ngk.pl</strong>.
         </p>
       </section>
 
@@ -44,7 +43,8 @@ export default function Privacy() {
         <ul className="list-disc pl-5 space-y-1 text-gray-400">
           <li><strong>Resend</strong> (resend.com) – wysyłka e-maili weryfikacyjnych i resetowania hasła</li>
           <li><strong>Google OAuth</strong> – opcjonalne logowanie przez konto Google (przekazywany jest tylko adres e-mail i awatar)</li>
-          <li><strong>Railway</strong> – hosting backendu i bazy danych</li>
+          <li><strong>Supabase</strong> (supabase.com) – baza danych, w której gromadzone i przechowywane są wszystkie dane konta i typów</li>
+          <li><strong>Railway</strong> – hosting backendu</li>
           <li><strong>Vercel</strong> – hosting frontendu</li>
         </ul>
         <p>Wszystkie podmioty przetwarzają dane zgodnie z RODO i posiadają odpowiednie certyfikaty (Privacy Shield / SCC).</p>
