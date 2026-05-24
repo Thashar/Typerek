@@ -14,7 +14,7 @@ const baseNav = [
   { to: '/profile', label: '👤 Profil' },
 ]
 
-function useLivePoints(userId) {
+function useLivePoints(userId, refreshUser) {
   const { data: liveData } = useQuery({
     queryKey: ['matches-live'],
     queryFn: getLive,
@@ -26,7 +26,13 @@ function useLivePoints(userId) {
 
   const { data: livePoints } = useQuery({
     queryKey: ['my-live-points'],
-    queryFn: () => api.get('/users/me/live-points').then(r => r.data),
+    queryFn: async () => {
+      const [data] = await Promise.all([
+        api.get('/users/me/live-points').then(r => r.data),
+        refreshUser(),
+      ])
+      return data
+    },
     enabled: hasLive && !!userId,
     refetchInterval: hasLive ? 30000 : false,
     staleTime: 0,
@@ -70,7 +76,7 @@ function useChatUnread(userId) {
 }
 
 export default function Layout() {
-  const { user, loading } = useAuth()
+  const { user, loading, refreshUser } = useAuth()
   const unreadChat = useChatUnread(user?.id)
 
   const { data: settings } = useQuery({
@@ -82,7 +88,7 @@ export default function Layout() {
   const allNav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
   const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 
-  const { hasLive, extraPoints } = useLivePoints(user?.id)
+  const { hasLive, extraPoints } = useLivePoints(user?.id, refreshUser)
 
   if (loading) return <SplashScreen />
 
