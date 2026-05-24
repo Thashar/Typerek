@@ -120,12 +120,18 @@ def get_live_private_league_ranking_changes(db: Session, league_id: int) -> dict
     )
 
     extra_points: dict[int, int] = {}
+    extra_exact: dict[int, int] = {}
+    extra_outcome: dict[int, int] = {}
     for pred in predictions:
         match = live_match_map[pred.match_id]
         if match.home_score is None or match.away_score is None:
             continue
         pts = pred.calculate_points(match.home_score, match.away_score, points_exact, points_outcome)
         extra_points[pred.user_id] = extra_points.get(pred.user_id, 0) + pts
+        if pts == points_exact:
+            extra_exact[pred.user_id] = extra_exact.get(pred.user_id, 0) + 1
+        elif pts == points_outcome:
+            extra_outcome[pred.user_id] = extra_outcome.get(pred.user_id, 0) + 1
 
     current_ranking = get_private_league_ranking(db, league_id)
     if not current_ranking:
@@ -143,6 +149,8 @@ def get_live_private_league_ranking_changes(db: Session, league_id: int) -> dict
             {
                 "user_id": r["user_id"],
                 "projected_extra_points": extra_points.get(r["user_id"], 0),
+                "extra_exact_hits": extra_exact.get(r["user_id"], 0),
+                "extra_outcome_hits": extra_outcome.get(r["user_id"], 0),
                 "rank_change": r["rank"] - projected_rank.get(r["user_id"], r["rank"]),
             }
             for r in current_ranking

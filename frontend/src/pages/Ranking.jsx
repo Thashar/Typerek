@@ -95,14 +95,7 @@ export default function Ranking() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <h2 className="text-xl font-bold">Ranking</h2>
-        {hasLive && (
-          <span className="flex items-center gap-1 text-xs font-bold text-red-500 animate-pulse">
-            ● NA ŻYWO
-          </span>
-        )}
-      </div>
+      <h2 className="text-xl font-bold">Ranking</h2>
 
       {tabs.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -129,6 +122,8 @@ export default function Ranking() {
           const isMe = user?.id === entry.user_id
           const change = changeMap[entry.user_id]
           const extraPts = change?.projected_extra_points ?? 0
+          const extraExact = change?.extra_exact_hits ?? 0
+          const extraOutcome = change?.extra_outcome_hits ?? 0
           const rankChange = change?.rank_change ?? 0
 
           return (
@@ -156,8 +151,14 @@ export default function Ranking() {
                   </span>
                 </div>
 
-                <div className="hidden sm:block text-right text-sm text-gray-400 shrink-0">
-                  <span>{entry.exact_hits}⭐ {entry.outcome_hits}✅</span>
+                <div className="hidden sm:block text-right text-sm shrink-0">
+                  <span className={extraExact > 0 ? 'text-green-400' : 'text-gray-400'}>
+                    {entry.exact_hits + extraExact}⭐
+                  </span>
+                  {' '}
+                  <span className={extraOutcome > 0 ? 'text-green-400' : 'text-gray-400'}>
+                    {entry.outcome_hits + extraOutcome}✅
+                  </span>
                 </div>
 
                 <div className="text-right shrink-0 flex flex-col items-end leading-tight">
