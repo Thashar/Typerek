@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { me, login as apiLogin, register as apiRegister } from '../api/auth'
 
 const AuthContext = createContext(null)
@@ -32,12 +32,12 @@ export function AuthProvider({ children }) {
     await apiRegister({ username, email, password, invite_code })
   }
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const userData = await me()
       setUser(userData)
     } catch {}
-  }
+  }, [])
 
   const logout = () => {
     localStorage.removeItem('access_token')

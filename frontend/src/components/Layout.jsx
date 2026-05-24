@@ -39,8 +39,6 @@ function useLivePoints(userId, refreshUser) {
 
   const hasLive = (liveData?.total ?? 0) > 0
 
-  // Zawsze enabled (gdy mamy usera) — dzieki temu po koncu meczu endpoint
-  // zwroci extra_points=0 i kolory/punkty w headerze cofna sie na czarno.
   const { data: livePoints } = useQuery({
     queryKey: ['my-live-points'],
     queryFn: async () => {
@@ -50,7 +48,7 @@ function useLivePoints(userId, refreshUser) {
       ])
       return data
     },
-    enabled: !!userId,
+    enabled: hasLive && !!userId,
     refetchInterval: hasLive ? 30000 : false,
     staleTime: 0,
   })
@@ -60,37 +58,25 @@ function useLivePoints(userId, refreshUser) {
 
 // Gdy zmienia sie liczba meczow live (np. backend domknal mecz po cronie),
 // jednorazowo uniewazniamy zaleznosci, zeby wszystkie widoki przeszly w
-// nowy stan rownoczesnie. Dodatkowo nasluchujemy WS dla natychmiastowego push.
-function useMatchUpdatesSync(liveTotal) {
+// nowy stan rownoczesnie. Bez WS — Matches/Ranking maja wlasne nasluchy.
+function useMatchUpdatesSync(liveTotal, userId, refreshUser) {
   const qc = useQueryClient()
   const prevTotalRef = useRef(undefined)
 
   useEffect(() => {
     if (liveTotal === undefined) return
-    if (prevTotalRef.current !== undefined && prevTotalRef.current !== liveTotal) {
-      LIVE_DEPENDENT_KEYS.forEach(key => qc.invalidateQueries({ queryKey: key }))
-    }
+    const prev = prevTotalRef.current
     prevTotalRef.current = liveTotal
-  }, [liveTotal, qc])
+    if (prev === undefined || prev === liveTotal) return
 
-  useEffect(() => {
-    const base = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
-    let ws, closed = false
-    const connect = () => {
-      try {
-        ws = new WebSocket(`${base}/api/matches/ws`)
-        ws.onmessage = () => {
-          LIVE_DEPENDENT_KEYS.forEach(key => qc.invalidateQueries({ queryKey: key }))
-        }
-        ws.onclose = () => { if (!closed) setTimeout(connect, 10000) }
-        ws.onerror = () => { try { ws.close() } catch {} }
-      } catch {
-        if (!closed) setTimeout(connect, 10000)
-      }
+    LIVE_DEPENDENT_KEYS.forEach(key => qc.invalidateQueries({ queryKey: key }))
+    // Po koncu meczu jednorazowo wymus odswiezenie usera i live-points,
+    // zeby header cofnal kolor i punkty doliczone trafily do total_points.
+    if (liveTotal === 0 && userId) {
+      api.get('/users/me/live-points').catch(() => {})
+      refreshUser?.()
     }
-    connect()
-    return () => { closed = true; try { ws?.close() } catch {} }
-  }, [qc])
+  }, [liveTotal, userId, refreshUser, qc])
 }
 
 function LiveIndicator() {
@@ -141,7 +127,7 @@ export default function Layout() {
   const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 
   const { hasLive, liveData, extraPoints } = useLivePoints(user?.id, refreshUser)
-  useMatchUpdatesSync(liveData?.total)
+  useMatchUpdatesSync(liveData?.total, user?.id, refreshUser)
 
   if (loading) return <SplashScreen />
 
