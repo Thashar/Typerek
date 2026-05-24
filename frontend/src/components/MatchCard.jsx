@@ -51,14 +51,14 @@ function useLiveMinute(match) {
         const m = apiMin ?? (match.live_started_at
           ? Math.min(45, Math.max(1, Math.floor((now - new Date(match.live_started_at + 'Z')) / 60000) + 1))
           : null)
-        if (m != null) minute = m <= 45 ? String(m) : `45+${m - 45}`
+        if (m != null) minute = m <= 45 ? String(m) : `+${m - 45}`
       } else if (short === '2H') {
         const m = apiMin ?? (match.second_half_started_at
-          ? Math.min(90, 46 + Math.floor((now - new Date(match.second_half_started_at + 'Z')) / 60000))
+          ? 46 + Math.floor((now - new Date(match.second_half_started_at + 'Z')) / 60000)
           : null)
         if (m != null) {
-          if (m > 97) finished = true
-          else if (m > 90) minute = `90+${m - 90}`
+          if (m > 105) finished = true
+          else if (m > 90) minute = `+${m - 90}`
           else minute = String(m)
         }
       }

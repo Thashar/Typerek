@@ -165,10 +165,8 @@ def _upsert_fixture(db: Session, f: dict) -> int:
 
     match.kickoff = kickoff
     match.status = parsed_status
-    match.status_short = status_short
     match.home_score = goals.get("home")
     match.away_score = goals.get("away")
-    match.minute = f["fixture"]["status"].get("elapsed")
     match.stage = f.get("stage")
     match.match_group = f.get("group")
 
@@ -177,6 +175,23 @@ def _upsert_fixture(db: Session, f: dict) -> int:
         match.live_started_at = now
     elif status_short == '2H' and match.second_half_started_at is None:
         match.second_half_started_at = now
+
+    # Nie cofaj statusu z 2H do 1H gdy API zwróci IN_PLAY bez minuty
+    if status_short == '1H' and match.second_half_started_at is not None:
+        status_short = '2H'
+    match.status_short = status_short
+
+    # Użyj minuty z API; jeśli brak — oszacuj z timestampów
+    api_minute = f["fixture"]["status"].get("elapsed")
+    if api_minute is not None:
+        match.minute = api_minute
+    elif parsed_status == MatchStatus.LIVE:
+        if match.second_half_started_at is not None:
+            elapsed = int((now - match.second_half_started_at).total_seconds() / 60)
+            match.minute = min(90, 46 + elapsed)
+        elif match.live_started_at is not None:
+            elapsed = int((now - match.live_started_at).total_seconds() / 60)
+            match.minute = min(45, max(1, elapsed + 1))
 
     return 1
 
