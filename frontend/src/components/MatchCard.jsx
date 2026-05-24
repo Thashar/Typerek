@@ -14,10 +14,14 @@ const STATUS_LABELS = {
   cancelled: 'Odwołany',
 }
 
-const OUTCOME_COLORS = {
-  '1': 'text-green-400',
-  'X': 'text-yellow-400',
-  '2': 'text-blue-400',
+function outcomeColor(prediction, match) {
+  const pts = prediction.points
+  if (pts != null) return pts > 0 ? 'text-green-400' : 'text-red-400'
+  if ((match.status === 'live') && match.home_score != null && match.away_score != null) {
+    const actual = match.home_score > match.away_score ? '1' : match.home_score < match.away_score ? '2' : 'X'
+    return actual === prediction.predicted_outcome ? 'text-green-400' : 'text-red-400'
+  }
+  return 'text-gray-400'
 }
 
 function useLiveMinute(match) {
@@ -169,7 +173,7 @@ function MatchCard({ match, prediction }) {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-400">
                   Twój typ: <span className="text-white font-bold">{prediction.predicted_home} – {prediction.predicted_away}</span>
-                  <span className={`ml-2 ${OUTCOME_COLORS[prediction.predicted_outcome]}`}>({prediction.predicted_outcome})</span>
+                  <span className={`ml-2 ${outcomeColor(prediction, match)}`}>({prediction.predicted_outcome})</span>
                 </span>
                 {pts != null && (
                   <span className={`font-bold ${pts > 0 ? 'text-green-400' : 'text-gray-500'}`}>
