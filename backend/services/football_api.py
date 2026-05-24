@@ -110,13 +110,16 @@ async def fetch_live_fixtures(codes: list[str] | None = None) -> list[dict]:
 
 
 async def fetch_fixtures_by_ids(fixture_ids: list[int], comp_codes: list[str] | None = None) -> list[dict]:
-    """Pobiera zakończone mecze tylko dla podanych kompetycji (domyślnie wszystkie)."""
+    """Pobiera mecze po ID odpytując API po dacie (bez filtra statusu) — łapie też mecze w przejściowym stanie."""
+    from datetime import date, timedelta
     codes = comp_codes if comp_codes is not None else list(COMPETITIONS)
     id_set = set(fixture_ids)
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
 
     async def _fetch_one(code: str) -> list[dict]:
         try:
-            data = await _get(f"/competitions/{code}/matches", {"status": "FINISHED"})
+            data = await _get(f"/competitions/{code}/matches", {"dateFrom": yesterday, "dateTo": today})
             return [_to_fixture(m, code) for m in data.get("matches", []) if m["id"] in id_set]
         except Exception:
             return []
