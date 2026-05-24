@@ -1,10 +1,25 @@
+import { useEffect, useRef } from 'react'
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { getLive } from '../api/matches'
 import { getSettings } from '../api/settings'
 import api from '../api/client'
 import SplashScreen from './SplashScreen'
+
+// Klucze zapytan ktore opisuja stan zwiazany z meczami live. Gdy backend
+// dosynchronizuje zakonczony mecz (i live total spadnie), zrzucamy je razem,
+// zeby header / ranking / historia typow odswiezyly sie w jednym takcie.
+const LIVE_DEPENDENT_KEYS = [
+  ['my-live-points'],
+  ['predictions'],
+  ['matches'],
+  ['matches-live'],
+  ['league-ranking'],
+  ['league-ranking-live'],
+  ['user-predictions'],
+  ['ranking'],
+]
 
 const baseNav = [
   { to: '/', label: '⚽ Mecze' },
@@ -24,6 +39,8 @@ function useLivePoints(userId, refreshUser) {
 
   const hasLive = (liveData?.total ?? 0) > 0
 
+  // Zawsze enabled (gdy mamy usera) — dzieki temu po koncu meczu endpoint
+  // zwroci extra_points=0 i kolory/punkty w headerze cofna sie na czarno.
   const { data: livePoints } = useQuery({
     queryKey: ['my-live-points'],
     queryFn: async () => {
@@ -33,12 +50,47 @@ function useLivePoints(userId, refreshUser) {
       ])
       return data
     },
-    enabled: hasLive && !!userId,
+    enabled: !!userId,
     refetchInterval: hasLive ? 30000 : false,
     staleTime: 0,
   })
 
   return { hasLive, liveData, extraPoints: livePoints?.extra_points ?? 0 }
+}
+
+// Gdy zmienia sie liczba meczow live (np. backend domknal mecz po cronie),
+// jednorazowo uniewazniamy zaleznosci, zeby wszystkie widoki przeszly w
+// nowy stan rownoczesnie. Dodatkowo nasluchujemy WS dla natychmiastowego push.
+function useMatchUpdatesSync(liveTotal) {
+  const qc = useQueryClient()
+  const prevTotalRef = useRef(undefined)
+
+  useEffect(() => {
+    if (liveTotal === undefined) return
+    if (prevTotalRef.current !== undefined && prevTotalRef.current !== liveTotal) {
+      LIVE_DEPENDENT_KEYS.forEach(key => qc.invalidateQueries({ queryKey: key }))
+    }
+    prevTotalRef.current = liveTotal
+  }, [liveTotal, qc])
+
+  useEffect(() => {
+    const base = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+    let ws, closed = false
+    const connect = () => {
+      try {
+        ws = new WebSocket(`${base}/api/matches/ws`)
+        ws.onmessage = () => {
+          LIVE_DEPENDENT_KEYS.forEach(key => qc.invalidateQueries({ queryKey: key }))
+        }
+        ws.onclose = () => { if (!closed) setTimeout(connect, 10000) }
+        ws.onerror = () => { try { ws.close() } catch {} }
+      } catch {
+        if (!closed) setTimeout(connect, 10000)
+      }
+    }
+    connect()
+    return () => { closed = true; try { ws?.close() } catch {} }
+  }, [qc])
 }
 
 function LiveIndicator() {
@@ -88,7 +140,8 @@ export default function Layout() {
   const allNav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
   const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 
-  const { hasLive, extraPoints } = useLivePoints(user?.id, refreshUser)
+  const { hasLive, liveData, extraPoints } = useLivePoints(user?.id, refreshUser)
+  useMatchUpdatesSync(liveData?.total)
 
   if (loading) return <SplashScreen />
 

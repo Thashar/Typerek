@@ -10,7 +10,13 @@
       "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek add -A)",
       "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek commit -m ' *)",
       "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek push origin main)",
-      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek log --oneline -10)"
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek log --oneline -10)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek show 3b77460 --stat)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek show 7f1fefe --stat)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek show 3b77460 -- frontend/src/components/Layout.jsx)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek show 7f1fefe -- frontend/src/components/Layout.jsx frontend/src/context/AuthContext.jsx)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek show 96956c6:frontend/src/components/Layout.jsx)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek show 96956c6:frontend/src/context/AuthContext.jsx)"
     ]
   }
 }
