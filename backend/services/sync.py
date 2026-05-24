@@ -81,7 +81,25 @@ async def update_live_and_recent(db: Session) -> int:
         db.commit()
         return 0
 
-    fixtures = await football_api.fetch_live_fixtures(COMPETITION_CODES)
+    # Ustal kody ligowe na podstawie aktywnych meczów w bazie, nie hardkodowanych COMPETITION_CODES
+    active_matches = db.query(Match).filter(
+        or_(
+            Match.status == MatchStatus.LIVE,
+            and_(
+                Match.kickoff <= now,
+                Match.kickoff >= window_start,
+                Match.status.notin_([MatchStatus.FINISHED, MatchStatus.CANCELLED, MatchStatus.POSTPONED]),
+            ),
+        )
+    ).all()
+    api_id_to_code = {v["id"]: k for k, v in football_api.COMPETITIONS.items()}
+    league_ids = {m.league_id for m in active_matches}
+    leagues = db.query(League).filter(League.id.in_(league_ids)).all()
+    codes_to_query = list({api_id_to_code[l.api_id] for l in leagues if l.api_id in api_id_to_code})
+    if not codes_to_query:
+        codes_to_query = COMPETITION_CODES
+
+    fixtures = await football_api.fetch_live_fixtures(codes_to_query)
 
     recent = db.query(Match).filter(
         Match.status == MatchStatus.LIVE,
