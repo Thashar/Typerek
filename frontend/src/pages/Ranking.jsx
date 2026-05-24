@@ -135,8 +135,10 @@ export default function Ranking() {
             <div
               key={entry.user_id}
               className={`bg-gray-900 rounded-xl overflow-hidden ${
-                isMe ? 'ring-2 ring-brand-500' : ''
-              } ${hasLive && rankChange !== 0 ? 'ring-1 ring-orange-500/50' : ''}`}
+                isMe ? 'ring-2 ring-brand-500' :
+                hasLive && rankChange > 0 ? 'ring-2 ring-green-500' :
+                hasLive && rankChange < 0 ? 'ring-2 ring-red-500' : ''
+              }`}
             >
               <button
                 onClick={() => navigate(`/user/${entry.user_id}`)}
@@ -159,11 +161,8 @@ export default function Ranking() {
                 </div>
 
                 <div className="text-right shrink-0 flex flex-col items-end leading-tight">
-                  <div className="font-bold text-lg text-brand-400">
-                    {entry.total_points}
-                    {hasLive && extraPts > 0 && (
-                      <span className="text-green-400 text-sm ml-1">+{extraPts}</span>
-                    )}
+                  <div className={`font-bold text-lg ${hasLive && extraPts > 0 ? 'text-green-400' : 'text-brand-400'}`}>
+                    {hasLive && extraPts > 0 ? entry.total_points + extraPts : entry.total_points}
                     <span className="text-xs font-normal text-gray-500 ml-0.5">pkt</span>
                   </div>
                   {hasLive && rankChange !== 0 && (
