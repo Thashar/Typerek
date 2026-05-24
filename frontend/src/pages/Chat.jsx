@@ -53,6 +53,7 @@ export default function Chat() {
     },
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     staleTime: 0,
   })
 
@@ -143,7 +144,9 @@ export default function Chat() {
       ...(user?.is_admin && effectiveLeagueId !== null ? { league_id: effectiveLeagueId } : {}),
     }).then(r => r.data),
     onSuccess: (newMsg) => {
-      qc.setQueryData(messagesKey, (old = []) => [...old, newMsg])
+      qc.setQueryData(messagesKey, (old = []) =>
+        old.some(m => m.id === newMsg.id) ? old : [...old, newMsg]
+      )
       localStorage.setItem('chat_last_read', String(newMsg.id))
       setText('')
       inputRef.current?.focus()
