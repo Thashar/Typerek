@@ -162,9 +162,7 @@ function MatchCard({ match, prediction }) {
         <span className={isLive ? 'text-red-500 font-bold animate-pulse' : ''}>
           {isLive
             ? 'LIVE'
-            : locallyFinished
-              ? 'Zakończony'
-              : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
+            : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
         </span>
       </div>
 
