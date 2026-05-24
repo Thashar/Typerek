@@ -1,25 +1,10 @@
-import { useEffect, useRef } from 'react'
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { getLive } from '../api/matches'
 import { getSettings } from '../api/settings'
 import api from '../api/client'
 import SplashScreen from './SplashScreen'
-
-// Klucze zapytan ktore opisuja stan zwiazany z meczami live. Gdy backend
-// dosynchronizuje zakonczony mecz (i live total spadnie), zrzucamy je razem,
-// zeby header / ranking / historia typow odswiezyly sie w jednym takcie.
-const LIVE_DEPENDENT_KEYS = [
-  ['my-live-points'],
-  ['predictions'],
-  ['matches'],
-  ['matches-live'],
-  ['league-ranking'],
-  ['league-ranking-live'],
-  ['user-predictions'],
-  ['ranking'],
-]
 
 const baseNav = [
   { to: '/', label: '⚽ Mecze' },
@@ -54,29 +39,6 @@ function useLivePoints(userId, refreshUser) {
   })
 
   return { hasLive, liveData, extraPoints: livePoints?.extra_points ?? 0 }
-}
-
-// Gdy zmienia sie liczba meczow live (np. backend domknal mecz po cronie),
-// jednorazowo uniewazniamy zaleznosci, zeby wszystkie widoki przeszly w
-// nowy stan rownoczesnie. Bez WS — Matches/Ranking maja wlasne nasluchy.
-function useMatchUpdatesSync(liveTotal, userId, refreshUser) {
-  const qc = useQueryClient()
-  const prevTotalRef = useRef(undefined)
-
-  useEffect(() => {
-    if (liveTotal === undefined) return
-    const prev = prevTotalRef.current
-    prevTotalRef.current = liveTotal
-    if (prev === undefined || prev === liveTotal) return
-
-    LIVE_DEPENDENT_KEYS.forEach(key => qc.invalidateQueries({ queryKey: key }))
-    // Po koncu meczu jednorazowo wymus odswiezenie usera i live-points,
-    // zeby header cofnal kolor i punkty doliczone trafily do total_points.
-    if (liveTotal === 0 && userId) {
-      api.get('/users/me/live-points').catch(() => {})
-      refreshUser?.()
-    }
-  }, [liveTotal, userId, refreshUser, qc])
 }
 
 function LiveIndicator() {
@@ -126,8 +88,7 @@ export default function Layout() {
   const allNav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
   const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 
-  const { hasLive, liveData, extraPoints } = useLivePoints(user?.id, refreshUser)
-  useMatchUpdatesSync(liveData?.total, user?.id, refreshUser)
+  const { hasLive, extraPoints } = useLivePoints(user?.id, refreshUser)
 
   if (loading) return <SplashScreen />
 
