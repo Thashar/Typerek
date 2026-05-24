@@ -5,7 +5,11 @@
       "WebFetch(domain:typerek-ngk.pl)",
       "Bash(npx vercel *)",
       "Bash(npm run *)",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Thash\\\\Desktop\\\\Bots\\\\Typerek\" -Recurse -File)"
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Thash\\\\Desktop\\\\Bots\\\\Typerek\" -Recurse -File)",
+      "Bash(npx vite *)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek add -A)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek commit -m ' *)",
+      "Bash(git -C c:/Users/Thash/Desktop/Bots/Typerek push origin main)"
     ]
   }
 }

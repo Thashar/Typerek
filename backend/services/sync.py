@@ -174,10 +174,22 @@ def _upsert_fixture(db: Session, f: dict) -> int:
 
     api_minute = f["fixture"]["status"].get("elapsed")
 
+    # Pierwsza polowa: kotwiczymy w kickoffie jesli mecz wystartowal na czas.
+    # Gdy API podaje elapsed, korygujemy: live_started_at = now - (elapsed-1) min.
     if status_short in ('1H', 'LIVE') and match.live_started_at is None:
-        match.live_started_at = now
+        if api_minute is not None and api_minute >= 1:
+            match.live_started_at = now - timedelta(minutes=api_minute - 1)
+        else:
+            match.live_started_at = min(kickoff, now)
+
+    # Druga polowa: jesli API podaje elapsed (>=45), cofamy timestamp.
+    # W przeciwnym razie szacujemy jako kickoff + 60 min (45 + 15 min przerwy).
     if status_short == '2H' and match.second_half_started_at is None:
-        match.second_half_started_at = now
+        if api_minute is not None and api_minute >= 45:
+            match.second_half_started_at = now - timedelta(minutes=api_minute - 45)
+        else:
+            estimated = kickoff + timedelta(minutes=60)
+            match.second_half_started_at = min(estimated, now)
 
     # Nie cofaj 2H → 1H przy kolejnych upsertach gdy API nie podaje minuty
     if status_short == '1H' and match.second_half_started_at is not None:
@@ -188,9 +200,14 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     if api_minute is not None:
         match.minute = api_minute
     elif parsed_status == MatchStatus.LIVE:
-        # Brak minuty z API — licz surowy czas od startu meczu, bez zgadywania połowy
-        if match.live_started_at is not None:
-            match.minute = max(1, int((now - match.live_started_at).total_seconds() / 60) + 1)
+        # Frontend liczy minute samodzielnie z live_started_at / second_half_started_at,
+        # ale zachowujemy pole minute jako referencja dla debugowania / fallback.
+        if status_short == '2H' and match.second_half_started_at is not None:
+            elapsed = int((now - match.second_half_started_at).total_seconds() / 60)
+            match.minute = max(45, 45 + elapsed)
+        elif match.live_started_at is not None:
+            elapsed = int((now - match.live_started_at).total_seconds() / 60)
+            match.minute = max(1, elapsed + 1)
 
     return 1
 

@@ -24,44 +24,84 @@ function outcomeColor(prediction, match) {
   return 'text-gray-400'
 }
 
+function parseUtc(value) {
+  if (!value) return null
+  const s = String(value)
+  const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + 'Z'
+  const t = new Date(iso).getTime()
+  return Number.isFinite(t) ? t : null
+}
+
+// Komponuje etykiete minuty meczu zgodnie z wymaganiami:
+//   1H:  1' .. 45', potem 45' (+1'), 45' (+2') ...
+//   HT:  "Przerwa"
+//   2H:  45' .. 90', potem 90' (+1'), 90' (+2') ...
 function useLiveMinute(match) {
-  const [state, setState] = useState({ minute: null, finished: false })
+  const [state, setState] = useState({ label: null, isHT: false, finished: false })
 
   useEffect(() => {
     if (match.status !== 'live') {
-      setState({ minute: null, finished: false })
+      setState({ label: null, isHT: false, finished: false })
       return
     }
 
     const compute = () => {
-      const now = Date.now()
       const short = match.status_short
+      const now = Date.now()
 
       if (short === 'HT') {
-        setState({ minute: null, finished: false })
+        setState({ label: 'Przerwa', isHT: true, finished: false })
         return
       }
 
-      let minute = null
-      let finished = false
-
-      const m = match.minute
-      if (m != null) {
-        if (short === '1H') minute = m <= 45 ? String(m) : `+${m - 45}`
-        else if (short === '2H') {
-          if (m > 105) finished = true
-          else if (m > 90) minute = `+${m - 90}`
-          else minute = String(m)
+      // 2H: timestamp wymagany — bez niego nie wiemy, gdzie jest mecz.
+      if (short === '2H') {
+        const start = parseUtc(match.second_half_started_at)
+        if (!start) {
+          setState({ label: null, isHT: false, finished: false })
+          return
         }
+        const elapsed = Math.max(0, Math.floor((now - start) / 60000))
+        const minute = 45 + elapsed
+        if (minute <= 90) {
+          setState({ label: `${minute}'`, isHT: false, finished: false })
+          return
+        }
+        const extra = elapsed - 45
+        // Sanity: po >30 min doliczonych traktujemy lokalnie jako zakonczony,
+        // backend dosynchronizuje finalny status w nastepnym cronie.
+        if (extra > 30) {
+          setState({ label: null, isHT: false, finished: true })
+          return
+        }
+        setState({ label: `90' (+${extra}')`, isHT: false, finished: false })
+        return
       }
 
-      setState({ minute, finished })
+      // 1H lub generyczny LIVE: kotwica = live_started_at (z fallbackiem na kickoff).
+      const start = parseUtc(match.live_started_at) ?? parseUtc(match.kickoff)
+      if (!start) {
+        setState({ label: null, isHT: false, finished: false })
+        return
+      }
+      const elapsed = Math.max(0, Math.floor((now - start) / 60000))
+      if (elapsed < 45) {
+        setState({ label: `${elapsed + 1}'`, isHT: false, finished: false })
+        return
+      }
+      const extra = elapsed - 44
+      // Sanity: dlugo po koncu 1H bez przejscia na HT/2H — chowamy minute.
+      if (extra > 20) {
+        setState({ label: null, isHT: false, finished: false })
+        return
+      }
+      setState({ label: `45' (+${extra}')`, isHT: false, finished: false })
     }
 
     compute()
-    const id = setInterval(compute, 30000)
+    const id = setInterval(compute, 15000)
     return () => clearInterval(id)
-  }, [match.status, match.status_short, match.live_started_at, match.second_half_started_at, match.minute])
+  }, [match.status, match.status_short, match.live_started_at, match.second_half_started_at, match.kickoff])
 
   return state
 }
@@ -102,7 +142,19 @@ function MatchCard({ match, prediction }) {
   const [away, setAway] = useState(prediction?.predicted_away ?? '')
   const [saved, setSaved] = useState(!!prediction)
 
-  const { minute: liveMinute, finished: locallyFinished } = useLiveMinute(match)
+  const { label: liveLabel, isHT, finished: locallyFinished } = useLiveMinute(match)
+
+  // Gdy lokalnie wykryjemy ze mecz juz powinien byc po, popros o swiezsze dane
+  // zaleznych zapytan zeby header/ranking/historia przelaczyly sie razem z karta.
+  useEffect(() => {
+    if (!locallyFinished) return
+    qc.invalidateQueries({ queryKey: ['matches-live'] })
+    qc.invalidateQueries({ queryKey: ['matches'] })
+    qc.invalidateQueries({ queryKey: ['my-live-points'] })
+    qc.invalidateQueries({ queryKey: ['predictions'] })
+    qc.invalidateQueries({ queryKey: ['league-ranking'] })
+    qc.invalidateQueries({ queryKey: ['league-ranking-live'] })
+  }, [locallyFinished, qc])
 
   const mutation = useMutation({
     mutationFn: () => submitPrediction({ match_id: match.id, predicted_home: home, predicted_away: away }),
@@ -118,7 +170,6 @@ function MatchCard({ match, prediction }) {
 
   const pts = prediction?.points
   const isLive = match.status === 'live' && !locallyFinished
-  const isHT = isLive && match.status_short === 'HT'
   const showAsFinished = match.status === 'finished' || locallyFinished
 
   return (
@@ -145,11 +196,11 @@ function MatchCard({ match, prediction }) {
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : isLive ? (
             <div className="flex flex-col items-center leading-none gap-0.5">
-              {isHT ? (
-                <span className="text-[10px] font-bold text-orange-400 animate-pulse">Przerwa</span>
-              ) : liveMinute != null ? (
-                <span className="text-[10px] font-bold text-red-500 animate-pulse">{liveMinute}'</span>
-              ) : null}
+              {liveLabel && (
+                <span className={`text-[10px] font-bold animate-pulse ${isHT ? 'text-orange-400' : 'text-red-500'}`}>
+                  {liveLabel}
+                </span>
+              )}
               <span className="text-xl text-red-500">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
             </div>
           ) : (
