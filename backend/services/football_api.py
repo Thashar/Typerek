@@ -91,7 +91,9 @@ async def fetch_fixtures_by_competition(comp_code: str, from_date: str, to_date:
     return [_to_fixture(m, comp_code) for m in data.get("matches", [])]
 
 
-async def fetch_live_fixtures() -> list[dict]:
+async def fetch_live_fixtures(codes: list[str] | None = None) -> list[dict]:
+    target_codes = codes if codes is not None else list(COMPETITIONS)
+
     async def _fetch_one(code: str) -> list[dict]:
         result = []
         # IN_PLAY = gra trwa; PAUSED = przerwa między połowami
@@ -103,7 +105,7 @@ async def fetch_live_fixtures() -> list[dict]:
                 pass
         return result
 
-    nested = await asyncio.gather(*[_fetch_one(code) for code in COMPETITIONS])
+    nested = await asyncio.gather(*[_fetch_one(code) for code in target_codes])
     return [item for sublist in nested for item in sublist]
 
 

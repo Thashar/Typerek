@@ -81,7 +81,7 @@ async def update_live_and_recent(db: Session) -> int:
         db.commit()
         return 0
 
-    fixtures = await football_api.fetch_live_fixtures()
+    fixtures = await football_api.fetch_live_fixtures(COMPETITION_CODES)
 
     recent = db.query(Match).filter(
         Match.status == MatchStatus.LIVE,
@@ -111,9 +111,8 @@ async def update_live_and_recent(db: Session) -> int:
         match.status = MatchStatus.FINISHED
         updated += 1
 
-    if updated:
-        _calculate_points_for_finished(db)
-        db.commit()
+    _calculate_points_for_finished(db)
+    db.commit()
     return updated
 
 

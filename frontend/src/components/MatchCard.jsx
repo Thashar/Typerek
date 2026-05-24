@@ -128,7 +128,7 @@ function MatchCard({ match, prediction }) {
           {isLive
             ? isHT
               ? 'Przerwa'
-              : `LIVE${liveMinute != null ? ` ${liveMinute}'` : ''}`
+              : 'LIVE'
             : locallyFinished
               ? 'Zakończony'
               : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
