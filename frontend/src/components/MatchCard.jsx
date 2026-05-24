@@ -45,18 +45,10 @@ function useLiveMinute(match) {
       let minute = null
       let finished = false
 
-      const apiMin = match.minute
-
-      if (short === '1H') {
-        const m = apiMin ?? (match.live_started_at
-          ? Math.min(45, Math.max(1, Math.floor((now - new Date(match.live_started_at + 'Z')) / 60000) + 1))
-          : null)
-        if (m != null) minute = m <= 45 ? String(m) : `+${m - 45}`
-      } else if (short === '2H') {
-        const m = apiMin ?? (match.second_half_started_at
-          ? 46 + Math.floor((now - new Date(match.second_half_started_at + 'Z')) / 60000)
-          : null)
-        if (m != null) {
+      const m = match.minute
+      if (m != null) {
+        if (short === '1H') minute = m <= 45 ? String(m) : `+${m - 45}`
+        else if (short === '2H') {
           if (m > 105) finished = true
           else if (m > 90) minute = `+${m - 90}`
           else minute = String(m)

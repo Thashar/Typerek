@@ -173,39 +173,24 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     api_minute = f["fixture"]["status"].get("elapsed")
-    fallback_minute = None
-
-    # Gdy API nie daje minuty, wykryj połowę z czasu od kickoffu
-    if parsed_status == MatchStatus.LIVE and api_minute is None:
-        elapsed_from_kickoff = (now - kickoff).total_seconds() / 60
-        if elapsed_from_kickoff >= 57 and status_short == '1H':
-            status_short = '2H'
-            # Licz minutę bezpośrednio z kickoffu (nie przez timestamp) — elapsed - 15min przerwy
-            fallback_minute = max(46, int(elapsed_from_kickoff) - 15)
 
     if status_short in ('1H', 'LIVE') and match.live_started_at is None:
         match.live_started_at = now
     if status_short == '2H' and match.second_half_started_at is None:
         match.second_half_started_at = now
 
-    # Nie cofaj 2H → 1H przy kolejnych upsertach
+    # Nie cofaj 2H → 1H przy kolejnych upsertach gdy API nie podaje minuty
     if status_short == '1H' and match.second_half_started_at is not None:
         status_short = '2H'
 
     match.status_short = status_short
 
-    # Minuty: z API, fallback z kickoffu, lub z timestampów
     if api_minute is not None:
         match.minute = api_minute
-    elif fallback_minute is not None:
-        match.minute = fallback_minute
     elif parsed_status == MatchStatus.LIVE:
-        if match.second_half_started_at is not None:
-            elapsed = int((now - match.second_half_started_at).total_seconds() / 60)
-            match.minute = 46 + elapsed
-        elif match.live_started_at is not None:
-            elapsed = int((now - match.live_started_at).total_seconds() / 60)
-            match.minute = min(45, max(1, elapsed + 1))
+        # Brak minuty z API — licz surowy czas od startu meczu, bez zgadywania połowy
+        if match.live_started_at is not None:
+            match.minute = max(1, int((now - match.live_started_at).total_seconds() / 60) + 1)
 
     return 1
 
