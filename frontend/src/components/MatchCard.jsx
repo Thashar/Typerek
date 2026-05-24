@@ -126,9 +126,7 @@ function MatchCard({ match, prediction }) {
         <span>{match.league.name} · {match.league.country}</span>
         <span className={isLive ? 'text-red-500 font-bold animate-pulse' : ''}>
           {isLive
-            ? isHT
-              ? 'Przerwa'
-              : 'LIVE'
+            ? 'LIVE'
             : locallyFinished
               ? 'Zakończony'
               : STATUS_LABELS[match.status] ?? `${dateStr} ${timeStr}`}
@@ -146,11 +144,11 @@ function MatchCard({ match, prediction }) {
             <span className="text-xl">{match.home_score} – {match.away_score}</span>
           ) : isLive ? (
             <div className="flex flex-col items-center leading-none gap-0.5">
-              {(isHT || liveMinute != null) && (
-                <span className="text-[10px] font-bold text-red-500 animate-pulse">
-                  {isHT ? 'HT' : `${liveMinute}'`}
-                </span>
-              )}
+              {isHT ? (
+                <span className="text-[10px] font-bold text-orange-400 animate-pulse">Przerwa</span>
+              ) : liveMinute != null ? (
+                <span className="text-[10px] font-bold text-red-500 animate-pulse">{liveMinute}'</span>
+              ) : null}
               <span className="text-xl text-red-500">{match.home_score ?? 0} – {match.away_score ?? 0}</span>
             </div>
           ) : (
