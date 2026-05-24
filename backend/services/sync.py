@@ -23,8 +23,8 @@ def _parse_status(short: str) -> MatchStatus:
     return MatchStatus.SCHEDULED
 
 
-# Kody turniejow z football-data.org
-COMPETITION_CODES = ["WC"]
+# Kody turniejow z football-data.org — wszystkie dostepne
+COMPETITION_CODES = list(football_api.COMPETITIONS.keys())
 
 
 async def sync_fixtures_for_days(db: Session, days_ahead: int = 7) -> int:
