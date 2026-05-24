@@ -51,10 +51,45 @@ export default function Chat() {
       const params = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
       return api.get(`/chat/messages${params}`).then(r => r.data)
     },
-    refetchInterval: 5000,
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
     staleTime: 0,
   })
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+
+    const base = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+    const leagueParam = effectiveLeagueId !== null ? `&league_id=${effectiveLeagueId}` : ''
+    const url = `${base}/api/chat/ws?token=${token}${leagueParam}`
+
+    let ws
+    let closed = false
+
+    const connect = () => {
+      ws = new WebSocket(url)
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data)
+        qc.setQueryData(messagesKey, (old = []) =>
+          old.some(m => m.id === msg.id) ? old : [...old, msg]
+        )
+      }
+
+      ws.onclose = () => {
+        if (!closed) setTimeout(connect, 3000)
+      }
+
+      ws.onerror = () => ws.close()
+    }
+
+    connect()
+    return () => {
+      closed = true
+      ws?.close()
+    }
+  }, [effectiveLeagueId])
 
   const typingParams = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
   const { data: typingUsers = [] } = useQuery({

@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from datetime import datetime, timezone, timedelta
+from collections import defaultdict
 from sqlalchemy.orm import Session, joinedload
-from core.database import get_db
+from core.database import get_db, SessionLocal
+from core.security import decode_token
 from routers.deps import get_current_user
 from models.user import User
 from models.chat import ChatMessage, ChatTyping
@@ -10,6 +12,31 @@ from models.private_league import PrivateLeagueMember
 from models.settings import GameSettings
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+class _ChatManager:
+    def __init__(self):
+        self._sockets: dict[int | None, set[WebSocket]] = defaultdict(set)
+
+    async def connect(self, ws: WebSocket, league_id: int | None):
+        await ws.accept()
+        self._sockets[league_id].add(ws)
+
+    def disconnect(self, ws: WebSocket, league_id: int | None):
+        self._sockets[league_id].discard(ws)
+
+    async def broadcast(self, league_id: int | None, data: dict):
+        dead = set()
+        for ws in list(self._sockets.get(league_id, set())):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                dead.add(ws)
+        for ws in dead:
+            self._sockets[league_id].discard(ws)
+
+
+manager = _ChatManager()
 
 
 def _get_user_league_id(db: Session, user_id: int) -> int | None:
@@ -31,6 +58,35 @@ class ChatMessageResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+@router.websocket("/ws")
+async def chat_ws(
+    websocket: WebSocket,
+    token: str = Query(...),
+    league_id: int | None = Query(default=None),
+):
+    payload = decode_token(token)
+    if not payload:
+        await websocket.close(code=4001)
+        return
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == int(payload["sub"])).first()
+        if not user or not user.is_active:
+            await websocket.close(code=4001)
+            return
+        effective_league_id = league_id if user.is_admin else _get_user_league_id(db, user.id)
+    finally:
+        db.close()
+
+    await manager.connect(websocket, effective_league_id)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, effective_league_id)
 
 
 @router.get("/messages", response_model=list[ChatMessageResponse])
@@ -116,7 +172,7 @@ def get_typing(
 
 
 @router.post("/messages", response_model=ChatMessageResponse, status_code=201)
-def send_message(
+async def send_message(
     body: SendMessageRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -141,11 +197,13 @@ def send_message(
     db.commit()
     db.refresh(msg)
 
-    return {
+    payload = {
         "id": msg.id,
         "user_id": msg.user_id,
         "username": current_user.username,
         "avatar": current_user.avatar,
         "content": msg.content,
-        "created_at": msg.created_at,
+        "created_at": msg.created_at.isoformat(),
     }
+    await manager.broadcast(league_id, payload)
+    return payload
