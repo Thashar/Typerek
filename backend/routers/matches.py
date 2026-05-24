@@ -1,9 +1,10 @@
 from datetime import date, timedelta
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from core.database import get_db
 from core.translations import translate_team, translate_country
+from core.ws import match_manager
 from models.match import Match, MatchStatus
 from schemas.match import MatchResponse, MatchListResponse
 
@@ -139,6 +140,16 @@ def get_live(db: Session = Depends(get_db)):
         q = q.filter(Match.league_id == wc_id)
     matches = q.order_by(Match.kickoff).all()
     return {"matches": matches, "total": len(matches)}
+
+
+@router.websocket("/ws")
+async def matches_ws(websocket: WebSocket):
+    await match_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        match_manager.disconnect(websocket)
 
 
 @router.get("/{match_id}", response_model=MatchResponse)

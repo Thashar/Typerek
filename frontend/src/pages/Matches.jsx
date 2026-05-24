@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -24,12 +24,29 @@ function formatDateBtn(dateStr) {
 export default function Matches() {
   usePageTitle('Mecze')
   const { user } = useAuth()
+  const qc = useQueryClient()
   const [searchParams] = useSearchParams()
   const [selectedLeague, setSelectedLeague] = useState(searchParams.get('live') === '1' ? LIVE_KEY : null)
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedLiveLeague, setSelectedLiveLeague] = useState(null)
   const dateNavRef = useRef(null)
   const isLiveMode = selectedLeague === LIVE_KEY
+
+  useEffect(() => {
+    const base = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+    let ws, closed = false
+    const connect = () => {
+      ws = new WebSocket(`${base}/api/matches/ws`)
+      ws.onmessage = () => {
+        qc.invalidateQueries({ queryKey: ['matches-live'] })
+        qc.invalidateQueries({ queryKey: ['matches'] })
+      }
+      ws.onclose = () => { if (!closed) setTimeout(connect, 5000) }
+      ws.onerror = () => ws.close()
+    }
+    connect()
+    return () => { closed = true; ws?.close() }
+  }, [])
 
   useEffect(() => {
     if (searchParams.get('live') === '1') {

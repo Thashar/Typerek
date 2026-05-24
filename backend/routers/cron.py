@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.config import settings
+from core.ws import match_manager
 from services import sync
 
 router = APIRouter(prefix="/api/cron", tags=["cron"])
@@ -31,4 +32,6 @@ async def cron_update_results(
 ):
     """Aktualizuje wyniki meczy live i przelicza punkty. Uruchamiany co 15min."""
     updated = await sync.update_live_and_recent(db)
+    if updated:
+        await match_manager.broadcast({"type": "update", "count": updated})
     return {"updated": updated}
