@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import PageLoader from '../components/PageLoader'
@@ -13,6 +13,7 @@ export default function Ranking() {
   usePageTitle('Ranking')
   const { user } = useAuth()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [selectedLeagueId, setSelectedLeagueId] = useState(null)
 
   const { data: myLeagues } = useQuery({
@@ -41,10 +42,47 @@ export default function Ranking() {
       return api.get(`/leagues/${leagueId}/ranking`).then(r => r.data)
     },
     enabled: !!leagueId,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
   })
+
+  const { data: liveData } = useQuery({
+    queryKey: ['league-ranking-live', leagueId],
+    queryFn: () => {
+      if (user?.is_admin) return api.get(`/admin/leagues/${leagueId}/ranking/live-changes`).then(r => r.data)
+      return api.get(`/leagues/${leagueId}/ranking/live-changes`).then(r => r.data)
+    },
+    enabled: !!leagueId,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+  })
+
+  // WebSocket — odśwież ranking gdy mecze się aktualizują
+  useEffect(() => {
+    if (!leagueId) return
+    const base = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+    let ws, closed = false
+    const connect = () => {
+      ws = new WebSocket(`${base}/api/matches/ws`)
+      ws.onmessage = () => {
+        qc.invalidateQueries({ queryKey: ['league-ranking', leagueId] })
+        qc.invalidateQueries({ queryKey: ['league-ranking-live', leagueId] })
+      }
+      ws.onclose = () => { if (!closed) setTimeout(connect, 5000) }
+      ws.onerror = () => ws.close()
+    }
+    connect()
+    return () => { closed = true; ws?.close() }
+  }, [leagueId])
 
   const entries = data?.entries ?? []
   const tabs = user?.is_admin ? (allLeagues ?? []) : []
+  const hasLive = liveData?.has_live ?? false
+  const changeMap = {}
+  if (hasLive) {
+    liveData.changes.forEach(c => { changeMap[c.user_id] = c })
+  }
 
   if (!leagueId && myLeagues !== undefined) {
     return (
@@ -57,7 +95,14 @@ export default function Ranking() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      <h2 className="text-xl font-bold">Ranking</h2>
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-bold">Ranking</h2>
+        {hasLive && (
+          <span className="flex items-center gap-1 text-xs font-bold text-red-500 animate-pulse">
+            ● NA ŻYWO
+          </span>
+        )}
+      </div>
 
       {tabs.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -82,8 +127,17 @@ export default function Ranking() {
       <div className="space-y-2">
         {entries.map((entry) => {
           const isMe = user?.id === entry.user_id
+          const change = changeMap[entry.user_id]
+          const extraPts = change?.projected_extra_points ?? 0
+          const rankChange = change?.rank_change ?? 0
+
           return (
-            <div key={entry.user_id} className={`bg-gray-900 rounded-xl overflow-hidden ${isMe ? 'ring-2 ring-brand-500' : ''}`}>
+            <div
+              key={entry.user_id}
+              className={`bg-gray-900 rounded-xl overflow-hidden ${
+                isMe ? 'ring-2 ring-brand-500' : ''
+              } ${hasLive && rankChange !== 0 ? 'ring-1 ring-orange-500/50' : ''}`}
+            >
               <button
                 onClick={() => navigate(`/user/${entry.user_id}`)}
                 aria-label={`Profil gracza ${entry.username}`}
@@ -104,8 +158,19 @@ export default function Ranking() {
                   <span>{entry.exact_hits}⭐ {entry.outcome_hits}✅</span>
                 </div>
 
-                <div className="text-right shrink-0">
-                  <div className="font-bold text-lg leading-tight text-brand-400">{entry.total_points} pkt</div>
+                <div className="text-right shrink-0 flex flex-col items-end leading-tight">
+                  <div className="font-bold text-lg text-brand-400">
+                    {entry.total_points}
+                    {hasLive && extraPts > 0 && (
+                      <span className="text-green-400 text-sm ml-1">+{extraPts}</span>
+                    )}
+                    <span className="text-xs font-normal text-gray-500 ml-0.5">pkt</span>
+                  </div>
+                  {hasLive && rankChange !== 0 && (
+                    <span className={`text-xs font-bold ${rankChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {rankChange > 0 ? `↑${rankChange}` : `↓${Math.abs(rankChange)}`}
+                    </span>
+                  )}
                 </div>
               </button>
             </div>

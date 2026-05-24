@@ -92,6 +92,64 @@ def get_live_ranking_changes(db: Session) -> dict:
     }
 
 
+def get_live_private_league_ranking_changes(db: Session, league_id: int) -> dict:
+    from models.match import Match, MatchStatus
+    from models.prediction import Prediction
+    from models.private_league import PrivateLeagueMember
+    from models.settings import GameSettings
+
+    live_matches = db.query(Match).filter(Match.status == MatchStatus.LIVE).all()
+    if not live_matches:
+        return {"has_live": False, "changes": []}
+
+    points_exact, points_outcome = GameSettings.get_points(db)
+    live_match_map = {m.id: m for m in live_matches}
+    member_ids = {m.user_id for m in db.query(PrivateLeagueMember).filter(PrivateLeagueMember.league_id == league_id).all()}
+
+    predictions = (
+        db.query(Prediction)
+        .join(User, Prediction.user_id == User.id)
+        .filter(
+            Prediction.match_id.in_(list(live_match_map.keys())),
+            Prediction.user_id.in_(member_ids),
+            User.is_ranked == True,
+            User.is_active == True,
+            Prediction.points.is_(None),
+        )
+        .all()
+    )
+
+    extra_points: dict[int, int] = {}
+    for pred in predictions:
+        match = live_match_map[pred.match_id]
+        if match.home_score is None or match.away_score is None:
+            continue
+        pts = pred.calculate_points(match.home_score, match.away_score, points_exact, points_outcome)
+        extra_points[pred.user_id] = extra_points.get(pred.user_id, 0) + pts
+
+    current_ranking = get_private_league_ranking(db, league_id)
+    if not current_ranking:
+        return {"has_live": True, "changes": []}
+
+    projected_sorted = sorted(
+        [{"user_id": r["user_id"], "pts": r["total_points"] + extra_points.get(r["user_id"], 0)} for r in current_ranking],
+        key=lambda x: -x["pts"],
+    )
+    projected_rank = {p["user_id"]: i + 1 for i, p in enumerate(projected_sorted)}
+
+    return {
+        "has_live": True,
+        "changes": [
+            {
+                "user_id": r["user_id"],
+                "projected_extra_points": extra_points.get(r["user_id"], 0),
+                "rank_change": r["rank"] - projected_rank.get(r["user_id"], r["rank"]),
+            }
+            for r in current_ranking
+        ],
+    }
+
+
 def get_private_league_ranking(db: Session, league_id: int) -> list[dict]:
     from models.settings import GameSettings
     points_exact, points_outcome = GameSettings.get_points(db)

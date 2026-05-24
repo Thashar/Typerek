@@ -119,6 +119,23 @@ def league_ranking(
     return {"entries": entries, "total": len(entries)}
 
 
+@router.get("/{league_id}/ranking/live-changes")
+def league_ranking_live_changes(
+    league_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    league = db.query(PrivateLeague).options(joinedload(PrivateLeague.members)).filter(
+        PrivateLeague.id == league_id
+    ).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    is_member = any(m.user_id == current_user.id for m in league.members)
+    if not is_member:
+        raise HTTPException(status_code=403, detail="Nie jesteś członkiem tej ligi")
+    return ranking_svc.get_live_private_league_ranking_changes(db, league_id)
+
+
 @router.delete("/{league_id}/leave", status_code=204)
 def leave_league(
     league_id: int,

@@ -307,6 +307,15 @@ def admin_league_ranking(
     return {"entries": entries, "total": len(entries)}
 
 
+@router.get("/leagues/{league_id}/ranking/live-changes")
+def admin_league_ranking_live_changes(
+    league_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    return ranking_svc.get_live_private_league_ranking_changes(db, league_id)
+
+
 @router.post("/leagues/{league_id}/add-ranked")
 def admin_add_ranked_to_league(
     league_id: int,
