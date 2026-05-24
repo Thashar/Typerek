@@ -328,6 +328,56 @@ def admin_add_ranked_to_league(
     return {"added": len(users_to_add)}
 
 
+@router.get("/debug/live")
+async def debug_live(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    """Diagnostyka: co widzi baza i co zwraca API dla meczów live."""
+    from sqlalchemy import or_, and_
+    from datetime import timedelta
+    from services import football_api
+    from services.sync import COMPETITION_CODES
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_start = now - timedelta(hours=3)
+
+    # Mecze aktualnie LIVE w bazie
+    live_in_db = db.query(Match).filter(Match.status == "live").all()
+
+    # Mecze scheduled które powinny już trwać
+    should_be_active = db.query(Match).filter(
+        Match.kickoff <= now,
+        Match.kickoff >= window_start,
+        Match.status.notin_(["finished", "cancelled", "postponed"]),
+    ).all()
+
+    # Sprawdź co zwraca API
+    api_results = {}
+    api_errors = {}
+    for code in COMPETITION_CODES:
+        for status in ("IN_PLAY", "PAUSED"):
+            key = f"{code}/{status}"
+            try:
+                data = await football_api._get(f"/competitions/{code}/matches", {"status": status})
+                matches = data.get("matches", [])
+                api_results[key] = [
+                    {"id": m["id"], "home": m.get("homeTeam", {}).get("name"), "away": m.get("awayTeam", {}).get("name"), "status": m.get("status")}
+                    for m in matches
+                ]
+            except Exception as e:
+                api_errors[key] = str(e)
+
+    return {
+        "now_utc": now.isoformat(),
+        "live_in_db": [{"id": m.id, "api_id": m.api_id, "home": m.home_team, "away": m.away_team, "kickoff_utc": m.kickoff.isoformat(), "status": m.status} for m in live_in_db],
+        "should_be_active": [{"id": m.id, "api_id": m.api_id, "home": m.home_team, "away": m.away_team, "kickoff_utc": m.kickoff.isoformat(), "status": m.status} for m in should_be_active],
+        "api_live_results": api_results,
+        "api_errors": api_errors,
+        "competition_codes": COMPETITION_CODES,
+    }
+
+
 @router.put("/users/{user_id}/league")
 def change_user_league(
     user_id: int,
