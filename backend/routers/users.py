@@ -59,6 +59,15 @@ def delete_avatar(
     db.commit()
 
 
+@router.get("/me/live-points")
+def my_live_points(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from services.ranking import get_user_live_extra_points
+    return {"extra_points": get_user_live_extra_points(db, current_user.id)}
+
+
 @router.delete("/me", status_code=204)
 def delete_account(
     db: Session = Depends(get_db),

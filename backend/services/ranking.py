@@ -5,6 +5,36 @@ from models.user import User
 from models.prediction import Prediction, POINTS_EXACT, POINTS_OUTCOME
 
 
+def get_user_live_extra_points(db: Session, user_id: int) -> int:
+    from models.match import Match, MatchStatus
+    from models.settings import GameSettings
+
+    live_matches = db.query(Match).filter(Match.status == MatchStatus.LIVE).all()
+    if not live_matches:
+        return 0
+
+    points_exact, points_outcome = GameSettings.get_points(db)
+    live_match_map = {m.id: m for m in live_matches}
+
+    predictions = (
+        db.query(Prediction)
+        .filter(
+            Prediction.match_id.in_(list(live_match_map.keys())),
+            Prediction.user_id == user_id,
+            Prediction.points.is_(None),
+        )
+        .all()
+    )
+
+    extra = 0
+    for pred in predictions:
+        match = live_match_map[pred.match_id]
+        if match.home_score is None or match.away_score is None:
+            continue
+        extra += pred.calculate_points(match.home_score, match.away_score, points_exact, points_outcome)
+    return extra
+
+
 def get_global_ranking(db: Session) -> list[dict]:
     from models.settings import GameSettings
     points_exact, points_outcome = GameSettings.get_points(db)

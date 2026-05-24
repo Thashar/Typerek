@@ -14,23 +14,37 @@ const baseNav = [
   { to: '/profile', label: '👤 Profil' },
 ]
 
-function LiveIndicator() {
-  const navigate = useNavigate()
-  const { data } = useQuery({
+function useLivePoints(userId) {
+  const { data: liveData } = useQuery({
     queryKey: ['matches-live'],
     queryFn: getLive,
     refetchInterval: 30000,
     staleTime: 0,
   })
 
-  const hasLive = (data?.total ?? 0) > 0
+  const hasLive = (liveData?.total ?? 0) > 0
+
+  const { data: livePoints } = useQuery({
+    queryKey: ['my-live-points'],
+    queryFn: () => api.get('/users/me/live-points').then(r => r.data),
+    enabled: hasLive && !!userId,
+    refetchInterval: hasLive ? 30000 : false,
+    staleTime: 0,
+  })
+
+  return { hasLive, liveData, extraPoints: livePoints?.extra_points ?? 0 }
+}
+
+function LiveIndicator() {
+  const navigate = useNavigate()
+  const { hasLive, liveData } = useLivePoints()
 
   return (
     <button
       onClick={() => navigate('/?live=1')}
       className={`flex items-center gap-1.5 text-xs font-semibold transition ${hasLive ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-500'}`}
-      title={hasLive ? `${data.total} mecz${data.total === 1 ? '' : data.total < 5 ? 'e' : 'ów'} na żywo` : 'Brak meczów na żywo'}
-      aria-label={hasLive ? `${data.total} meczów na żywo — pokaż` : 'Brak meczów na żywo'}
+      title={hasLive ? `${liveData.total} mecz${liveData.total === 1 ? '' : liveData.total < 5 ? 'e' : 'ów'} na żywo` : 'Brak meczów na żywo'}
+      aria-label={hasLive ? `${liveData?.total} meczów na żywo — pokaż` : 'Brak meczów na żywo'}
     >
       <span className={`inline-block w-2 h-2 rounded-full ${hasLive ? 'bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.8)] animate-pulse' : 'bg-gray-600'}`} />
       Na żywo
@@ -68,9 +82,13 @@ export default function Layout() {
   const allNav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
   const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 
+  const { hasLive, extraPoints } = useLivePoints(user?.id)
+
   if (loading) return <SplashScreen />
 
   if (!user) return <Navigate to="/login" replace />
+
+  const displayPoints = user.total_points + extraPoints
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden">
@@ -79,7 +97,9 @@ export default function Layout() {
           <span className="font-bold text-lg">⚽ <span className="text-white">Type</span><span className="text-brand-500">Rek</span></span>
           <div className="flex items-center gap-4">
             <LiveIndicator />
-            <span className="text-sm text-gray-400">{user.username} · <span className="text-brand-400 font-bold">{user.total_points} pkt</span></span>
+            <span className="text-sm text-gray-400">
+              {user.username} · <span className={`font-bold ${hasLive && extraPoints > 0 ? 'text-green-400' : 'text-brand-400'}`}>{displayPoints} pkt</span>
+            </span>
           </div>
         </div>
       </header>
