@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, Component } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
@@ -13,6 +13,23 @@ function lazyWithRetry(factory) {
       return new Promise(() => {})
     })
   )
+}
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch() {
+    window.location.reload()
+  }
+  render() {
+    if (this.state.hasError) return <PageLoader />
+    return this.props.children
+  }
 }
 
 const Login = lazyWithRetry(() => import('./pages/Login'))
@@ -44,6 +61,7 @@ export default function App() {
   return (
     <AuthProvider>
       <UpdateBanner />
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -67,6 +85,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </AuthProvider>
   )
 }
