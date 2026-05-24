@@ -18,7 +18,7 @@ def get_global_ranking(db: Session) -> list[dict]:
         LEFT JOIN predictions p ON p.user_id = u.id
         WHERE u.is_active = TRUE AND u.is_ranked = TRUE
         GROUP BY u.id, u.username, u.avatar
-        ORDER BY total_points DESC
+        ORDER BY total_points DESC, exact_hits DESC
     """), {"exact": points_exact, "outcome": points_outcome}).fetchall()
 
     return [
@@ -74,8 +74,8 @@ def get_live_ranking_changes(db: Session) -> dict:
         return {"has_live": True, "changes": []}
 
     projected_sorted = sorted(
-        [{"user_id": r["user_id"], "pts": r["total_points"] + extra_points.get(r["user_id"], 0)} for r in current_ranking],
-        key=lambda x: -x["pts"],
+        [{"user_id": r["user_id"], "pts": r["total_points"] + extra_points.get(r["user_id"], 0), "exact": r["exact_hits"]} for r in current_ranking],
+        key=lambda x: (-x["pts"], -x["exact"]),
     )
     projected_rank = {p["user_id"]: i + 1 for i, p in enumerate(projected_sorted)}
 
@@ -138,8 +138,8 @@ def get_live_private_league_ranking_changes(db: Session, league_id: int) -> dict
         return {"has_live": True, "changes": []}
 
     projected_sorted = sorted(
-        [{"user_id": r["user_id"], "pts": r["total_points"] + extra_points.get(r["user_id"], 0)} for r in current_ranking],
-        key=lambda x: -x["pts"],
+        [{"user_id": r["user_id"], "pts": r["total_points"] + extra_points.get(r["user_id"], 0), "exact": r["exact_hits"] + extra_exact.get(r["user_id"], 0)} for r in current_ranking],
+        key=lambda x: (-x["pts"], -x["exact"]),
     )
     projected_rank = {p["user_id"]: i + 1 for i, p in enumerate(projected_sorted)}
 
@@ -175,7 +175,7 @@ def get_private_league_ranking(db: Session, league_id: int) -> list[dict]:
           AND u.is_active = TRUE
           AND u.is_ranked = TRUE
         GROUP BY u.id, u.username, u.avatar
-        ORDER BY total_points DESC
+        ORDER BY total_points DESC, exact_hits DESC
     """), {"league_id": league_id, "exact": points_exact, "outcome": points_outcome}).fetchall()
 
     return [
