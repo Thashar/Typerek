@@ -171,24 +171,37 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.match_group = f.get("group")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    api_minute = f["fixture"]["status"].get("elapsed")
+
+    # Gdy API nie daje minuty, wykryj połowę z czasu od kickoffu
+    if parsed_status == MatchStatus.LIVE and api_minute is None:
+        elapsed_from_kickoff = (now - kickoff).total_seconds() / 60
+        # > 57 min od kickoffu = na pewno 2H (45 min 1H + ~12 min przerwy minimum)
+        if elapsed_from_kickoff >= 57 and status_short == '1H':
+            status_short = '2H'
+            # Oszacuj start 2H: kickoff + 57 min (jeśli jeszcze nie ustawiony)
+            if match.second_half_started_at is None:
+                match.second_half_started_at = kickoff + timedelta(minutes=57)
+
     if status_short in ('1H', 'LIVE') and match.live_started_at is None:
         match.live_started_at = now
-    elif status_short == '2H' and match.second_half_started_at is None:
+    if status_short == '2H' and match.second_half_started_at is None:
         match.second_half_started_at = now
 
-    # Nie cofaj statusu z 2H do 1H gdy API zwróci IN_PLAY bez minuty
+    # Nie cofaj 2H → 1H przy kolejnych upsertach
     if status_short == '1H' and match.second_half_started_at is not None:
         status_short = '2H'
+
     match.status_short = status_short
 
-    # Użyj minuty z API; jeśli brak — oszacuj z timestampów
-    api_minute = f["fixture"]["status"].get("elapsed")
+    # Minuty: z API lub oszacowane z timestampów
     if api_minute is not None:
         match.minute = api_minute
     elif parsed_status == MatchStatus.LIVE:
         if match.second_half_started_at is not None:
             elapsed = int((now - match.second_half_started_at).total_seconds() / 60)
-            match.minute = min(90, 46 + elapsed)
+            match.minute = 46 + elapsed
         elif match.live_started_at is not None:
             elapsed = int((now - match.live_started_at).total_seconds() / 60)
             match.minute = min(45, max(1, elapsed + 1))
