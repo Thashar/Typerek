@@ -6,23 +6,32 @@ import UpdateBanner from './components/UpdateBanner'
 import Layout from './components/Layout'
 import PageLoader from './components/PageLoader'
 
-const Login = lazy(() => import('./pages/Login'))
-const Register = lazy(() => import('./pages/Register'))
-const Matches = lazy(() => import('./pages/Matches'))
-const WorldCup = lazy(() => import('./pages/WorldCup'))
-const Ranking = lazy(() => import('./pages/Ranking'))
-const Profile = lazy(() => import('./pages/Profile'))
-const Admin = lazy(() => import('./pages/Admin'))
-const AdminUserProfile = lazy(() => import('./pages/AdminUserProfile'))
-const Chat = lazy(() => import('./pages/Chat'))
-const UserProfile = lazy(() => import('./pages/UserProfile'))
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
-const ResetPassword = lazy(() => import('./pages/ResetPassword'))
-const VerifyEmail = lazy(() => import('./pages/VerifyEmail'))
-const ResendVerification = lazy(() => import('./pages/ResendVerification'))
-const GoogleCallback = lazy(() => import('./pages/GoogleCallback'))
-const NotFound = lazy(() => import('./pages/NotFound'))
-const Privacy = lazy(() => import('./pages/Privacy'))
+function lazyWithRetry(factory) {
+  return lazy(() =>
+    factory().catch(() => {
+      window.location.reload()
+      return new Promise(() => {})
+    })
+  )
+}
+
+const Login = lazyWithRetry(() => import('./pages/Login'))
+const Register = lazyWithRetry(() => import('./pages/Register'))
+const Matches = lazyWithRetry(() => import('./pages/Matches'))
+const WorldCup = lazyWithRetry(() => import('./pages/WorldCup'))
+const Ranking = lazyWithRetry(() => import('./pages/Ranking'))
+const Profile = lazyWithRetry(() => import('./pages/Profile'))
+const Admin = lazyWithRetry(() => import('./pages/Admin'))
+const AdminUserProfile = lazyWithRetry(() => import('./pages/AdminUserProfile'))
+const Chat = lazyWithRetry(() => import('./pages/Chat'))
+const UserProfile = lazyWithRetry(() => import('./pages/UserProfile'))
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazyWithRetry(() => import('./pages/ResetPassword'))
+const VerifyEmail = lazyWithRetry(() => import('./pages/VerifyEmail'))
+const ResendVerification = lazyWithRetry(() => import('./pages/ResendVerification'))
+const GoogleCallback = lazyWithRetry(() => import('./pages/GoogleCallback'))
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
+const Privacy = lazyWithRetry(() => import('./pages/Privacy'))
 
 function AdminRoute({ children }) {
   const { user } = useAuth()
