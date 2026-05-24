@@ -45,19 +45,21 @@ function useLiveMinute(match) {
       let minute = null
       let finished = false
 
-      if (short === '1H' && match.live_started_at) {
-        const elapsed = Math.floor((now - new Date(match.live_started_at + 'Z')) / 60000)
-        const m = Math.max(1, elapsed + 1)
-        minute = m <= 45 ? String(m) : `45+${m - 45}`
-      } else if (short === '2H' && match.second_half_started_at) {
-        const elapsed = Math.floor((now - new Date(match.second_half_started_at + 'Z')) / 60000)
-        const m = 45 + Math.max(0, elapsed)
-        if (m >= 100) {
-          finished = true
-        } else if (m >= 90) {
-          minute = `90+${m - 90}`
-        } else {
-          minute = String(m)
+      const apiMin = match.minute
+
+      if (short === '1H') {
+        const m = apiMin ?? (match.live_started_at
+          ? Math.min(45, Math.max(1, Math.floor((now - new Date(match.live_started_at + 'Z')) / 60000) + 1))
+          : null)
+        if (m != null) minute = m <= 45 ? String(m) : `45+${m - 45}`
+      } else if (short === '2H') {
+        const m = apiMin ?? (match.second_half_started_at
+          ? Math.min(90, 46 + Math.floor((now - new Date(match.second_half_started_at + 'Z')) / 60000))
+          : null)
+        if (m != null) {
+          if (m > 97) finished = true
+          else if (m > 90) minute = `90+${m - 90}`
+          else minute = String(m)
         }
       }
 
@@ -67,7 +69,7 @@ function useLiveMinute(match) {
     compute()
     const id = setInterval(compute, 30000)
     return () => clearInterval(id)
-  }, [match.status, match.status_short, match.live_started_at, match.second_half_started_at])
+  }, [match.status, match.status_short, match.live_started_at, match.second_half_started_at, match.minute])
 
   return state
 }
