@@ -92,6 +92,9 @@ async def chat_ws(
 @router.get("/messages", response_model=list[ChatMessageResponse])
 def get_messages(
     league_id: int | None = Query(default=None),
+    before_id: int | None = Query(default=None),
+    after_id: int | None = Query(default=None),
+    limit: int = Query(default=10, le=50),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -110,8 +113,15 @@ def get_messages(
     else:
         q = q.filter(ChatMessage.league_id.is_(None))
 
-    msgs = q.order_by(ChatMessage.created_at.desc()).limit(100).all()
-    msgs.reverse()
+    if after_id is not None:
+        q = q.filter(ChatMessage.id > after_id)
+        msgs = q.order_by(ChatMessage.id.asc()).limit(limit).all()
+    else:
+        if before_id is not None:
+            q = q.filter(ChatMessage.id < before_id)
+        msgs = q.order_by(ChatMessage.id.desc()).limit(limit).all()
+        msgs.reverse()
+
     return [
         {
             "id": m.id,

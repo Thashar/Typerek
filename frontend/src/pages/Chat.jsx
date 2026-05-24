@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
@@ -10,24 +10,29 @@ import UserAvatar from '../components/UserAvatar'
 export default function Chat() {
   usePageTitle('Chat')
   const { user } = useAuth()
-  const qc = useQueryClient()
+  const scrollRef = useRef(null)
   const bottomRef = useRef(null)
   const separatorRef = useRef(null)
   const inputRef = useRef(null)
   const [text, setText] = useState('')
   const [selectedLeagueId, setSelectedLeagueId] = useState(null)
-  const prevCountRef = useRef(0)
-  const hasScrolledInitially = useRef(false)
   const lastTypingSentRef = useRef(0)
+
+  // Pagination state
+  const [messages, setMessages] = useState([])
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const oldestIdRef = useRef(null)
+  const latestIdRef = useRef(0)
+  const prevScrollHeightRef = useRef(0)
+  const preserveScrollRef = useRef(false)
+  const initialScrollDoneRef = useRef(false)
 
   const initialLastReadId = useRef(
     parseInt(localStorage.getItem('chat_last_read') || '0')
   )
 
-  const { data: settings } = useQuery({
-    queryKey: ['game-settings'],
-    queryFn: getSettings,
-  })
+  const { data: settings } = useQuery({ queryKey: ['game-settings'], queryFn: getSettings })
 
   const { data: allLeagues = [] } = useQuery({
     queryKey: ['admin-leagues'],
@@ -43,55 +48,130 @@ export default function Chat() {
 
   const effectiveLeagueId = user?.is_admin ? selectedLeagueId : (myLeagues[0]?.id ?? null)
 
-  const messagesKey = ['chat-messages', effectiveLeagueId ?? 'null']
+  const leagueParams = (extra = {}) => {
+    const p = { limit: 10, ...extra }
+    if (effectiveLeagueId !== null) p.league_id = effectiveLeagueId
+    return p
+  }
 
-  const { data: messages = [] } = useQuery({
-    queryKey: messagesKey,
-    queryFn: () => {
-      const params = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
-      return api.get(`/chat/messages${params}`).then(r => r.data)
-    },
-    refetchInterval: 30000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false,
-    staleTime: 0,
-  })
+  // Initial load
+  const loadInitial = useCallback(async () => {
+    initialScrollDoneRef.current = false
+    oldestIdRef.current = null
+    latestIdRef.current = 0
+    setHasMore(true)
+    setMessages([])
+    try {
+      const res = await api.get('/chat/messages', { params: leagueParams() })
+      const msgs = res.data
+      setMessages(msgs)
+      setHasMore(msgs.length === 10)
+      if (msgs.length > 0) {
+        oldestIdRef.current = msgs[0].id
+        latestIdRef.current = msgs[msgs.length - 1].id
+        localStorage.setItem('chat_last_read', String(msgs[msgs.length - 1].id))
+      }
+    } catch {}
+  }, [effectiveLeagueId])
 
+  useEffect(() => { loadInitial() }, [loadInitial])
+
+  // Load older messages
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || oldestIdRef.current === null) return
+    setLoadingMore(true)
+    preserveScrollRef.current = true
+    prevScrollHeightRef.current = scrollRef.current?.scrollHeight ?? 0
+    try {
+      const res = await api.get('/chat/messages', { params: leagueParams({ before_id: oldestIdRef.current }) })
+      const older = res.data
+      setMessages(prev => [...older, ...prev])
+      setHasMore(older.length === 10)
+      if (older.length > 0) oldestIdRef.current = older[0].id
+    } catch {}
+    setLoadingMore(false)
+  }, [hasMore, loadingMore, effectiveLeagueId])
+
+  // Preserve scroll position when prepending older messages
+  useLayoutEffect(() => {
+    if (preserveScrollRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight - prevScrollHeightRef.current
+      preserveScrollRef.current = false
+    }
+  }, [messages])
+
+  // Initial scroll to bottom (or separator)
+  useEffect(() => {
+    if (messages.length === 0 || initialScrollDoneRef.current || preserveScrollRef.current) return
+    initialScrollDoneRef.current = true
+    if (separatorRef.current) {
+      separatorRef.current.scrollIntoView({ behavior: 'instant' })
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' })
+    }
+  }, [messages])
+
+  // Scroll listener — load more when near top
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    const onScroll = () => {
+      if (container.scrollTop < 80 && !loadingMore) loadMore()
+    }
+    container.addEventListener('scroll', onScroll)
+    return () => container.removeEventListener('scroll', onScroll)
+  }, [loadMore])
+
+  // WebSocket — real-time messages
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) return
-
     const base = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
     const leagueParam = effectiveLeagueId !== null ? `&league_id=${effectiveLeagueId}` : ''
     const url = `${base}/api/chat/ws?token=${token}${leagueParam}`
-
     let ws
     let closed = false
-
     const connect = () => {
       ws = new WebSocket(url)
-
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data)
-        qc.setQueryData(messagesKey, (old = []) =>
-          old.some(m => m.id === msg.id) ? old : [...old, msg]
-        )
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev
+          latestIdRef.current = Math.max(latestIdRef.current, msg.id)
+          localStorage.setItem('chat_last_read', String(msg.id))
+          return [...prev, msg]
+        })
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
       }
-
-      ws.onclose = () => {
-        if (!closed) setTimeout(connect, 3000)
-      }
-
+      ws.onclose = () => { if (!closed) setTimeout(connect, 3000) }
       ws.onerror = () => ws.close()
     }
-
     connect()
-    return () => {
-      closed = true
-      ws?.close()
-    }
+    return () => { closed = true; ws?.close() }
   }, [effectiveLeagueId])
 
+  // Polling fallback — only fetch missed messages (after_id)
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (!latestIdRef.current) return
+      try {
+        const res = await api.get('/chat/messages', { params: leagueParams({ after_id: latestIdRef.current, limit: 50 }) })
+        const newMsgs = res.data
+        if (!newMsgs.length) return
+        setMessages(prev => {
+          const ids = new Set(prev.map(m => m.id))
+          const toAdd = newMsgs.filter(m => !ids.has(m.id))
+          if (!toAdd.length) return prev
+          latestIdRef.current = Math.max(latestIdRef.current, ...toAdd.map(m => m.id))
+          return [...prev, ...toAdd]
+        })
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      } catch {}
+    }, 30000)
+    return () => clearInterval(id)
+  }, [effectiveLeagueId])
+
+  // Typing indicator
   const typingParams = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
   const { data: typingUsers = [] } = useQuery({
     queryKey: ['chat-typing', effectiveLeagueId ?? 'null'],
@@ -108,48 +188,20 @@ export default function Chat() {
     api.post(`/chat/typing${typingParams}`).catch(() => {})
   }, [typingParams])
 
-  useEffect(() => {
-    hasScrolledInitially.current = false
-    prevCountRef.current = 0
-  }, [effectiveLeagueId])
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      const lastId = messages[messages.length - 1].id
-      localStorage.setItem('chat_last_read', String(lastId))
-    }
-  }, [messages])
-
-  useEffect(() => {
-    if (messages.length === 0) return
-    if (!hasScrolledInitially.current) {
-      hasScrolledInitially.current = true
-      prevCountRef.current = messages.length
-      if (separatorRef.current) {
-        separatorRef.current.scrollIntoView({ behavior: 'instant' })
-      } else {
-        bottomRef.current?.scrollIntoView({ behavior: 'instant' })
-      }
-      return
-    }
-    if (messages.length !== prevCountRef.current) {
-      prevCountRef.current = messages.length
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages])
-
   const sendMut = useMutation({
     mutationFn: (content) => api.post('/chat/messages', {
       content,
       ...(user?.is_admin && effectiveLeagueId !== null ? { league_id: effectiveLeagueId } : {}),
     }).then(r => r.data),
     onSuccess: (newMsg) => {
-      qc.setQueryData(messagesKey, (old = []) =>
-        old.some(m => m.id === newMsg.id) ? old : [...old, newMsg]
+      setMessages(prev =>
+        prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]
       )
+      latestIdRef.current = Math.max(latestIdRef.current, newMsg.id)
       localStorage.setItem('chat_last_read', String(newMsg.id))
       setText('')
       inputRef.current?.focus()
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     },
   })
 
@@ -161,10 +213,7 @@ export default function Chat() {
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend(e)
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e) }
   }
 
   const firstUnreadIdx = initialLastReadId.current > 0
@@ -194,8 +243,14 @@ export default function Chat() {
         <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Czat jest wyłączony</div>
       ) : (
         <>
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3 scrollbar-hide">
-            {messages.length === 0 && (
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto py-4 space-y-3 scrollbar-hide">
+            {loadingMore && (
+              <p className="text-center text-xs text-gray-600 py-2">Ładowanie...</p>
+            )}
+            {!hasMore && messages.length > 0 && (
+              <p className="text-center text-xs text-gray-700 py-2">Początek historii</p>
+            )}
+            {messages.length === 0 && !loadingMore && (
               <p className="text-gray-500 text-center pt-12 text-sm">
                 {user?.is_admin && selectedLeagueId === null ? 'Wybierz ligę powyżej' : 'Brak wiadomości. Napisz coś!'}
               </p>
