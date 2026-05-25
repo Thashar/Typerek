@@ -30,7 +30,7 @@ async def cron_update_results(
     db: Session = Depends(get_db),
     _: None = Depends(_verify_cron),
 ):
-    """Aktualizuje wyniki meczy live i przelicza punkty. Uruchamiany co 15min."""
+    """Aktualizuje wyniki meczy live i przelicza punkty. Uruchamiany co 1min."""
     updated = await sync.update_live_and_recent(db)
     if updated:
         await match_manager.broadcast({"type": "update", "count": updated})

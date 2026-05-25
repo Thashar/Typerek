@@ -96,7 +96,7 @@ export default function Matches() {
   const { data: liveData, isLoading: liveLoading } = useQuery({
     queryKey: ['matches-live'],
     queryFn: getLive,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
     staleTime: 0,
   })
@@ -105,7 +105,7 @@ export default function Matches() {
     queryKey: ['matches', selectedLeague, selectedDate],
     queryFn: () => getMatches({ from_date: selectedDate, to_date: selectedDate, league_id: selectedLeague }),
     enabled: !!selectedDate && !!selectedLeague && !isLiveMode,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
   })
 
@@ -113,7 +113,7 @@ export default function Matches() {
     queryKey: ['predictions'],
     queryFn: myPredictions,
     enabled: !!user,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
   })
 
