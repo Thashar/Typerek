@@ -136,7 +136,7 @@ export default function Layout() {
     queryFn: getSettings,
   })
 
-  const chatVisible = user?.is_admin || settings?.chat_enabled !== false
+  const chatVisible = settings?.chat_enabled !== false
   const allNav = user?.is_admin ? [...baseNav, { to: '/admin', label: '⚙️ Admin' }] : baseNav
   const nav = chatVisible ? allNav : allNav.filter(n => n.to !== '/chat')
 

@@ -183,8 +183,7 @@ def reset_all_points(
     db: Session = Depends(get_db),
     _: User = Depends(get_admin_user),
 ):
-    from sqlalchemy import text
-    db.execute(text("UPDATE predictions SET points = NULL"))
+    db.query(Prediction).delete()
     db.commit()
     return {"detail": "ok"}
 
