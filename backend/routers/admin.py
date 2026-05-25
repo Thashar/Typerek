@@ -9,7 +9,7 @@ from models.user import User
 from models.match import Match, MatchStatus
 from models.prediction import Prediction
 from models.invite_code import InviteCode
-from models.chat import ChatMessage
+from models.chat import ChatMessage, ChatTyping
 from models.private_league import PrivateLeague, PrivateLeagueMember
 from services import ranking as ranking_svc
 
@@ -103,13 +103,15 @@ def delete_user(
         raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
     if target.is_admin:
         raise HTTPException(status_code=400, detail="Nie można usunąć administratora")
-    from models.chat import ChatMessage
     from models.private_league import PrivateLeague, PrivateLeagueMember
     db.query(Prediction).filter(Prediction.user_id == user_id).delete()
     db.query(ChatMessage).filter(ChatMessage.user_id == user_id).delete()
+    db.query(ChatTyping).filter(ChatTyping.user_id == user_id).delete()
     db.query(PrivateLeagueMember).filter(PrivateLeagueMember.user_id == user_id).delete()
     owned = db.query(PrivateLeague).filter(PrivateLeague.owner_id == user_id).all()
     for league in owned:
+        db.query(ChatMessage).filter(ChatMessage.league_id == league.id).delete()
+        db.query(ChatTyping).filter(ChatTyping.league_id == league.id).delete()
         db.delete(league)
     db.query(InviteCode).filter(InviteCode.used_by_id == user_id).update(
         {"used_by_id": None, "used_at": None}
@@ -297,6 +299,8 @@ def admin_delete_league(
     league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
     if not league:
         raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    db.query(ChatMessage).filter(ChatMessage.league_id == league_id).delete()
+    db.query(ChatTyping).filter(ChatTyping.league_id == league_id).delete()
     db.delete(league)
     db.commit()
 
