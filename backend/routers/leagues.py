@@ -136,6 +136,21 @@ def league_ranking_live_changes(
     return ranking_svc.get_live_private_league_ranking_changes(db, league_id)
 
 
+@router.delete("/{league_id}", status_code=204)
+def delete_league(
+    league_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    league = db.query(PrivateLeague).filter(PrivateLeague.id == league_id).first()
+    if not league:
+        raise HTTPException(status_code=404, detail="Liga nie istnieje")
+    if league.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Tylko właściciel może usunąć ligę")
+    db.delete(league)
+    db.commit()
+
+
 @router.delete("/{league_id}/leave", status_code=204)
 def leave_league(
     league_id: int,

@@ -103,7 +103,14 @@ def delete_user(
         raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
     if target.is_admin:
         raise HTTPException(status_code=400, detail="Nie można usunąć administratora")
+    from models.chat import ChatMessage
+    from models.private_league import PrivateLeague, PrivateLeagueMember
     db.query(Prediction).filter(Prediction.user_id == user_id).delete()
+    db.query(ChatMessage).filter(ChatMessage.user_id == user_id).delete()
+    db.query(PrivateLeagueMember).filter(PrivateLeagueMember.user_id == user_id).delete()
+    owned = db.query(PrivateLeague).filter(PrivateLeague.owner_id == user_id).all()
+    for league in owned:
+        db.delete(league)
     db.query(InviteCode).filter(InviteCode.used_by_id == user_id).update(
         {"used_by_id": None, "used_at": None}
     )

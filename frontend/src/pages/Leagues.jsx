@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { myLeagues, createLeague, joinLeague, leaveLeague, getLeagueRanking } from '../api/leagues'
+import { myLeagues, createLeague, joinLeague, leaveLeague, deleteLeague, getLeagueRanking } from '../api/leagues'
+import { useAuth } from '../context/AuthContext'
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
@@ -34,11 +35,13 @@ function LeagueRankingModal({ league, onClose }) {
 }
 
 export default function Leagues() {
+  const { user } = useAuth()
   const qc = useQueryClient()
   const [newName, setNewName] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [selected, setSelected] = useState(null)
   const [error, setError] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   const { data } = useQuery({ queryKey: ['my-leagues'], queryFn: myLeagues })
   const leagues = data ?? []
@@ -58,6 +61,13 @@ export default function Leagues() {
   const leaveMut = useMutation({
     mutationFn: (id) => leaveLeague(id),
     onSuccess: () => qc.invalidateQueries(['my-leagues']),
+    onError: (e) => setError(e.response?.data?.detail || 'Błąd opuszczania ligi'),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => deleteLeague(id),
+    onSuccess: () => { setDeleteConfirm(null); qc.invalidateQueries(['my-leagues']) },
+    onError: (e) => setError(e.response?.data?.detail || 'Błąd usuwania ligi'),
   })
 
   return (
@@ -118,12 +128,30 @@ export default function Leagues() {
             >
               Ranking
             </button>
-            <button
-              onClick={() => leaveMut.mutate(league.id)}
-              className="px-3 py-1.5 bg-red-900 hover:bg-red-800 rounded-lg text-sm transition"
-            >
-              Opuść
-            </button>
+            {user?.id === league.owner_id ? (
+              deleteConfirm === league.id ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => deleteMut.mutate(league.id)} disabled={deleteMut.isPending}
+                    className="px-2 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg text-xs font-semibold transition">
+                    {deleteMut.isPending ? '...' : 'Tak, usuń'}
+                  </button>
+                  <button onClick={() => setDeleteConfirm(null)}
+                    className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs transition">
+                    Anuluj
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setDeleteConfirm(league.id)}
+                  className="px-3 py-1.5 bg-red-900 hover:bg-red-800 rounded-lg text-sm transition">
+                  Usuń
+                </button>
+              )
+            ) : (
+              <button onClick={() => leaveMut.mutate(league.id)}
+                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition">
+                Opuść
+              </button>
+            )}
           </div>
         ))}
       </div>
