@@ -147,21 +147,60 @@ function UserRow({ u, currentUserId, leagues, onChanged }) {
   const canDelete = !u.is_admin && u.id !== currentUserId
 
   return (
-    <div className="py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <div className="flex-1 min-w-0">
-        {!u.is_admin
-          ? <Link to={`/admin/users/${u.id}`} className="font-medium text-white text-sm hover:text-brand-500 transition">{u.username}</Link>
-          : <span className="font-medium text-white text-sm">{u.username}</span>
-        }
-        {u.is_admin && <span className="ml-2 text-xs bg-brand-500/20 text-brand-500 px-1.5 py-0.5 rounded">admin</span>}
-        {u.is_ranked
-          ? <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">zweryfikowany</span>
-          : <span className="ml-1 text-xs bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">niezweryfikowany</span>
-        }
-        {!u.is_verified && <span className="ml-1 text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">mail niepotwierdzony</span>}
-        <div className="text-xs text-gray-500 mt-0.5 truncate">{u.email}</div>
+    <div className="py-3 space-y-2">
+      {/* Wiersz 1: nazwa + punkty + akcje */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center flex-wrap gap-1">
+            {!u.is_admin
+              ? <Link to={`/admin/users/${u.id}`} className="font-medium text-white text-sm hover:text-brand-500 transition">{u.username}</Link>
+              : <span className="font-medium text-white text-sm">{u.username}</span>
+            }
+            {u.is_admin && <span className="text-xs bg-brand-500/20 text-brand-500 px-1.5 py-0.5 rounded">admin</span>}
+            {u.is_ranked
+              ? <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">zweryfikowany</span>
+              : <span className="text-xs bg-gray-700 text-gray-500 px-1.5 py-0.5 rounded">niezweryfikowany</span>
+            }
+            {!u.is_verified && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">mail niepotwierdzony</span>}
+          </div>
+          <div className="text-xs text-gray-500 mt-0.5 truncate">{u.email}</div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-right">
+            <div className="text-brand-500 font-bold text-sm">{u.total_points} pkt</div>
+            <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
+          </div>
+          {!u.is_ranked && (
+            <button
+              onClick={() => verifyMut.mutate()}
+              disabled={verifyMut.isPending}
+              className="text-xs bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-2 py-1 rounded transition"
+            >
+              {verifyMut.isPending ? '...' : 'Weryfikuj'}
+            </button>
+          )}
+          {canDelete && (
+            confirm ? (
+              <div className="flex items-center gap-1">
+                <button onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}
+                  className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition">
+                  {deleteMut.isPending ? '...' : 'Tak'}
+                </button>
+                <button onClick={() => setConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition">
+                  Nie
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => { setErr(''); setConfirm(true) }}
+                className="text-gray-600 hover:text-red-400 transition text-lg leading-none" title="Usuń użytkownika">
+                ×
+              </button>
+            )
+          )}
+        </div>
       </div>
-      <div className="shrink-0">
+      {/* Wiersz 2: selektor ligi */}
+      <div>
         <select
           value={u.league_id || ''}
           onChange={e => leagueMut.mutate(e.target.value ? parseInt(e.target.value) : null)}
@@ -174,40 +213,7 @@ function UserRow({ u, currentUserId, leagues, onChanged }) {
           ))}
         </select>
       </div>
-      <div className="text-right shrink-0">
-        <div className="text-brand-500 font-bold text-sm">{u.total_points} pkt</div>
-        <div className="text-xs text-gray-500">{u.created_at?.slice(0, 10)}</div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {!u.is_ranked && (
-          <button
-            onClick={() => verifyMut.mutate()}
-            disabled={verifyMut.isPending}
-            className="text-xs bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-2 py-1 rounded transition"
-          >
-            {verifyMut.isPending ? '...' : 'Weryfikuj'}
-          </button>
-        )}
-        {canDelete && (
-          confirm ? (
-            <div className="flex items-center gap-1">
-              <button onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}
-                className="text-xs bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded transition">
-                {deleteMut.isPending ? '...' : 'Tak'}
-              </button>
-              <button onClick={() => setConfirm(false)} className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition">
-                Nie
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => { setErr(''); setConfirm(true) }}
-              className="text-gray-600 hover:text-red-400 transition text-lg leading-none" title="Usuń użytkownika">
-              ×
-            </button>
-          )
-        )}
-      </div>
-      {err && <span className="text-xs text-red-400 w-full">{err}</span>}
+      {err && <span className="text-xs text-red-400">{err}</span>}
     </div>
   )
 }
