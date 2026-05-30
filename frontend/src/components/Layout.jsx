@@ -163,7 +163,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-y-auto">
+      <main className="flex-1 min-h-0 overflow-y-auto outline-none">
         <Outlet />
       </main>
 
