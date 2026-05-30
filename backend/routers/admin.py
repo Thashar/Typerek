@@ -173,6 +173,21 @@ def recalculate_points(
     _: User = Depends(get_admin_user),
 ):
     """Przelicz punkty dla wszystkich zakończonych meczów bez punktów."""
+    from services import sync
+    sync._calculate_points_for_finished(db)
+    db.commit()
+    return {"detail": "ok"}
+
+
+@router.post("/recalculate-all-points")
+def recalculate_all_points(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    """Resetuje i przelicza punkty dla WSZYSTKICH zakończonych meczów (używaj po korekcie wyników)."""
+    from services import sync
+    db.query(Prediction).filter(Prediction.points.isnot(None)).update({Prediction.points: None})
+    db.flush()
     sync._calculate_points_for_finished(db)
     db.commit()
     return {"detail": "ok"}

@@ -42,6 +42,21 @@ def _status_short(raw: str, minute: int | None = None) -> str:
     }.get(raw, "NS")
 
 
+def _score_90min(score: dict) -> tuple:
+    """Zwraca wynik po 90 min (bez dogrywki i karnych).
+    football-data.org w fullTime zwraca wynik skumulowany (wliczajac karne),
+    wiec uzywamy regularTime gdy dostepne, lub odejmujemy penalties od fullTime.
+    """
+    ft = score.get("fullTime") or {}
+    regular = score.get("regularTime") or {}
+    pens = score.get("penalties") or {}
+    if regular.get("home") is not None:
+        return regular["home"], regular["away"]
+    if pens.get("home") is not None and ft.get("home") is not None:
+        return ft["home"] - pens["home"], ft["away"] - pens["away"]
+    return ft.get("home"), ft.get("away")
+
+
 def _to_fixture(m: dict, comp_code: str) -> dict:
     comp = COMPETITIONS.get(comp_code, {})
     utc = m.get("utcDate", "")
@@ -49,7 +64,7 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
         ts = int(datetime.fromisoformat(utc.replace("Z", "+00:00")).timestamp())
     except Exception:
         ts = 0
-    ft = m.get("score", {}).get("fullTime", {})
+    home_score, away_score = _score_90min(m.get("score", {}))
     minute = m.get("minute")
     return {
         "fixture": {
@@ -74,7 +89,7 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
                 "logo": m.get("awayTeam", {}).get("crest", ""),
             },
         },
-        "goals": {"home": ft.get("home"), "away": ft.get("away")},
+        "goals": {"home": home_score, "away": away_score},
         "stage": m.get("stage"),
         "group": m.get("group"),
     }
@@ -159,7 +174,7 @@ async def fetch_match_by_id(fixture_id: int) -> dict | None:
         ts = int(datetime.fromisoformat(utc.replace("Z", "+00:00")).timestamp())
     except Exception:
         ts = 0
-    ft = match.get("score", {}).get("fullTime", {})
+    home_score, away_score = _score_90min(match.get("score", {}))
     minute = match.get("minute")
     return {
         "fixture": {
@@ -184,7 +199,7 @@ async def fetch_match_by_id(fixture_id: int) -> dict | None:
                 "logo": match.get("awayTeam", {}).get("crest", ""),
             },
         },
-        "goals": {"home": ft.get("home"), "away": ft.get("away")},
+        "goals": {"home": home_score, "away": away_score},
         "stage": match.get("stage"),
         "group": match.get("group"),
     }
