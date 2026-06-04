@@ -120,6 +120,7 @@ function useChatUnread(user) {
     queryKey: ['chat-messages'],
     queryFn: () => api.get('/chat/messages').then(r => r.data),
     refetchInterval: (isOnChat || isAdmin) ? false : 30000,
+    refetchIntervalInBackground: false,
     staleTime: 30000,
     enabled: !!userId && !isAdmin,
   })
@@ -147,9 +148,15 @@ function useChatUnread(user) {
       }))
       setAdminUnread(total)
     }
+    let id = null
+    const start = () => { id = setInterval(check, 30000) }
+    const stop = () => { clearInterval(id); id = null }
+    const onVisibility = () => { if (document.hidden) stop(); else { check(); start() } }
+
     check()
-    const id = setInterval(check, 30000)
-    return () => clearInterval(id)
+    start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [allLeagues, isOnChat, isAdmin, userId])
 
   if (isOnChat) return 0

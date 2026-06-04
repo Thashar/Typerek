@@ -299,9 +299,15 @@ export default function Admin() {
       }))
       setChatUnreadCounts(counts)
     }
+    let id = null
+    const start = () => { id = setInterval(check, 30000) }
+    const stop = () => { clearInterval(id); id = null }
+    const onVisibility = () => { if (document.hidden) stop(); else { check(); start() } }
+
     check()
-    const id = setInterval(check, 30000)
-    return () => clearInterval(id)
+    start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [allLeagues])
 
   const clearChat = useMutation({
