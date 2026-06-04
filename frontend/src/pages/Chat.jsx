@@ -9,6 +9,11 @@ import UserAvatar from '../components/UserAvatar'
 
 const lastReadKey = (leagueId) => leagueId != null ? `chat_last_read_${leagueId}` : 'chat_last_read'
 
+const updateLastRead = (leagueId, msgId) => {
+  localStorage.setItem(lastReadKey(leagueId), String(msgId))
+  localStorage.setItem('chat_last_read', String(msgId))
+}
+
 export default function Chat() {
   usePageTitle('Chat')
   const { user } = useAuth()
@@ -17,14 +22,12 @@ export default function Chat() {
   const separatorRef = useRef(null)
   const inputRef = useRef(null)
   const [text, setText] = useState('')
-  const [selectedLeagueId, setSelectedLeagueId] = useState(() => {
+  const [selectedLeagueId] = useState(() => {
     const saved = localStorage.getItem('chat_last_league')
     return saved ? parseInt(saved) : null
   })
-  const [unreadCounts, setUnreadCounts] = useState({})
   const lastTypingSentRef = useRef(0)
 
-  // Pagination state
   const [messages, setMessages] = useState([])
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -37,36 +40,11 @@ export default function Chat() {
 
   const { data: settings } = useQuery({ queryKey: ['game-settings'], queryFn: getSettings })
 
-  const { data: allLeagues = [] } = useQuery({
-    queryKey: ['admin-leagues'],
-    queryFn: () => api.get('/admin/leagues').then(r => r.data),
-    enabled: !!user?.is_admin,
-  })
-
   const { data: myLeagues = [] } = useQuery({
     queryKey: ['my-leagues'],
     queryFn: () => api.get('/leagues/me').then(r => r.data),
     enabled: !user?.is_admin,
   })
-
-  // Auto-select last used or first available league when leagues load
-  useEffect(() => {
-    if (!user?.is_admin || allLeagues.length === 0) return
-    const saved = localStorage.getItem('chat_last_league')
-    const savedId = saved ? parseInt(saved) : null
-    const validLeague = savedId && allLeagues.find(l => l.id === savedId)
-    if (!validLeague) {
-      const firstId = allLeagues[0].id
-      setSelectedLeagueId(firstId)
-      localStorage.setItem('chat_last_league', String(firstId))
-    }
-  }, [allLeagues, user?.is_admin])
-
-  const handleSelectLeague = useCallback((id) => {
-    setSelectedLeagueId(id)
-    localStorage.setItem('chat_last_league', String(id))
-    setUnreadCounts(prev => ({ ...prev, [id]: 0 }))
-  }, [])
 
   const effectiveLeagueId = user?.is_admin ? selectedLeagueId : (myLeagues[0]?.id ?? null)
 
@@ -76,7 +54,6 @@ export default function Chat() {
     return p
   }
 
-  // Initial load
   const loadInitial = useCallback(async () => {
     initialLastReadId.current = parseInt(localStorage.getItem(lastReadKey(effectiveLeagueId)) || '0')
     initialScrollDoneRef.current = false
@@ -92,14 +69,13 @@ export default function Chat() {
       if (msgs.length > 0) {
         oldestIdRef.current = msgs[0].id
         latestIdRef.current = msgs[msgs.length - 1].id
-        localStorage.setItem(lastReadKey(effectiveLeagueId), String(msgs[msgs.length - 1].id))
+        updateLastRead(effectiveLeagueId, msgs[msgs.length - 1].id)
       }
     } catch {}
   }, [effectiveLeagueId])
 
   useEffect(() => { loadInitial() }, [loadInitial])
 
-  // Load older messages
   const loadMore = useCallback(async () => {
     if (!hasMore || loadingMore || oldestIdRef.current === null) return
     setLoadingMore(true)
@@ -115,7 +91,6 @@ export default function Chat() {
     setLoadingMore(false)
   }, [hasMore, loadingMore, effectiveLeagueId])
 
-  // Preserve scroll position when prepending older messages
   useLayoutEffect(() => {
     if (preserveScrollRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight - prevScrollHeightRef.current
@@ -123,7 +98,6 @@ export default function Chat() {
     }
   }, [messages])
 
-  // Initial scroll to bottom (or separator)
   useEffect(() => {
     if (messages.length === 0 || initialScrollDoneRef.current || preserveScrollRef.current) return
     initialScrollDoneRef.current = true
@@ -134,7 +108,6 @@ export default function Chat() {
     }
   }, [messages])
 
-  // Scroll listener — load more when near top
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
@@ -145,7 +118,6 @@ export default function Chat() {
     return () => container.removeEventListener('scroll', onScroll)
   }, [loadMore])
 
-  // WebSocket — real-time messages
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) return
@@ -161,7 +133,7 @@ export default function Chat() {
         setMessages(prev => {
           if (prev.some(m => m.id === msg.id)) return prev
           latestIdRef.current = Math.max(latestIdRef.current, msg.id)
-          localStorage.setItem(lastReadKey(effectiveLeagueId), String(msg.id))
+          updateLastRead(effectiveLeagueId, msg.id)
           return [...prev, msg]
         })
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -173,7 +145,6 @@ export default function Chat() {
     return () => { closed = true; ws?.close() }
   }, [effectiveLeagueId])
 
-  // Polling fallback — only fetch missed messages (after_id)
   useEffect(() => {
     const id = setInterval(async () => {
       if (!latestIdRef.current) return
@@ -194,33 +165,6 @@ export default function Chat() {
     return () => clearInterval(id)
   }, [effectiveLeagueId])
 
-  // Poll inactive leagues for unread notification badges
-  useEffect(() => {
-    if (!user?.is_admin || allLeagues.length === 0) return
-    const checkUnread = async () => {
-      const counts = {}
-      await Promise.all(allLeagues.map(async (league) => {
-        if (league.id === effectiveLeagueId) return
-        const lastRead = parseInt(localStorage.getItem(lastReadKey(league.id)) || '0')
-        try {
-          const res = await api.get('/chat/messages', { params: { league_id: league.id, after_id: lastRead, limit: 50 } })
-          counts[league.id] = res.data.length
-        } catch {}
-      }))
-      setUnreadCounts(prev => {
-        const next = { ...prev }
-        allLeagues.forEach(l => {
-          if (l.id !== effectiveLeagueId) next[l.id] = counts[l.id] ?? 0
-        })
-        return next
-      })
-    }
-    checkUnread()
-    const id = setInterval(checkUnread, 30000)
-    return () => clearInterval(id)
-  }, [allLeagues, effectiveLeagueId, user?.is_admin])
-
-  // Typing indicator
   const typingParams = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
   const { data: typingUsers = [] } = useQuery({
     queryKey: ['chat-typing', effectiveLeagueId ?? 'null'],
@@ -247,7 +191,7 @@ export default function Chat() {
         prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]
       )
       latestIdRef.current = Math.max(latestIdRef.current, newMsg.id)
-      localStorage.setItem(lastReadKey(effectiveLeagueId), String(newMsg.id))
+      updateLastRead(effectiveLeagueId, newMsg.id)
       setText('')
       inputRef.current?.focus()
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -273,26 +217,6 @@ export default function Chat() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 flex flex-col h-full">
-
-      {user?.is_admin && allLeagues.length > 0 && (
-        <div className="shrink-0 flex gap-2 overflow-x-auto py-2 border-b border-gray-800">
-          {allLeagues.map(l => (
-            <button
-              key={l.id}
-              onClick={() => handleSelectLeague(l.id)}
-              className={`relative shrink-0 px-3 py-1 rounded-full text-xs font-mono font-medium transition ${selectedLeagueId === l.id ? 'bg-brand-500 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-            >
-              {l.invite_code}
-              {unreadCounts[l.id] > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
-                  {unreadCounts[l.id] > 9 ? '9+' : unreadCounts[l.id]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
       {chatDisabled && !user?.is_admin ? (
         <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Czat jest wyłączony</div>
       ) : (
@@ -306,7 +230,7 @@ export default function Chat() {
             )}
             {messages.length === 0 && !loadingMore && (
               <p className="text-gray-500 text-center pt-12 text-sm">
-                {user?.is_admin && selectedLeagueId === null ? 'Wybierz ligę powyżej' : 'Brak wiadomości. Napisz coś!'}
+                {user?.is_admin && selectedLeagueId === null ? 'Wybierz ligę w panelu admina' : 'Brak wiadomości. Napisz coś!'}
               </p>
             )}
             {messages.map((msg, idx) => {
@@ -352,7 +276,7 @@ export default function Chat() {
             <input
               ref={inputRef}
               className="flex-1 bg-gray-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500"
-              placeholder={user?.is_admin && selectedLeagueId === null ? 'Wybierz ligę...' : 'Napisz wiadomość...'}
+              placeholder={user?.is_admin && selectedLeagueId === null ? 'Wybierz ligę w panelu admina...' : 'Napisz wiadomość...'}
               value={text}
               onChange={e => { setText(e.target.value); sendTyping() }}
               onKeyDown={handleKeyDown}
