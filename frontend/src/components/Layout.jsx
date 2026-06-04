@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
@@ -110,26 +110,58 @@ function LiveIndicator() {
   )
 }
 
-function useChatUnread(userId) {
+function useChatUnread(user) {
   const { pathname } = useLocation()
   const isOnChat = pathname === '/chat'
+  const userId = user?.id
+  const isAdmin = user?.is_admin
 
   const { data: messages = [] } = useQuery({
     queryKey: ['chat-messages'],
     queryFn: () => api.get('/chat/messages').then(r => r.data),
-    refetchInterval: isOnChat ? false : 30000,
+    refetchInterval: (isOnChat || isAdmin) ? false : 30000,
     staleTime: 30000,
-    enabled: !!userId,
+    enabled: !!userId && !isAdmin,
   })
 
+  const { data: allLeagues = [] } = useQuery({
+    queryKey: ['admin-leagues'],
+    queryFn: () => api.get('/admin/leagues').then(r => r.data),
+    enabled: !!isAdmin,
+    staleTime: 60000,
+  })
+
+  const [adminUnread, setAdminUnread] = useState(0)
+
+  useEffect(() => {
+    if (!isAdmin || allLeagues.length === 0) return
+    if (isOnChat) { setAdminUnread(0); return }
+    const check = async () => {
+      let total = 0
+      await Promise.all(allLeagues.map(async (league) => {
+        const lastRead = parseInt(localStorage.getItem(`chat_last_read_${league.id}`) || '0')
+        try {
+          const res = await api.get('/chat/messages', { params: { league_id: league.id, after_id: lastRead, limit: 50 } })
+          total += res.data.filter(m => m.user_id !== userId).length
+        } catch {}
+      }))
+      setAdminUnread(total)
+    }
+    check()
+    const id = setInterval(check, 30000)
+    return () => clearInterval(id)
+  }, [allLeagues, isOnChat, isAdmin, userId])
+
   if (isOnChat) return 0
+  if (isAdmin) return adminUnread
+
   const lastReadId = parseInt(localStorage.getItem('chat_last_read') || '0')
   return messages.filter(m => m.id > lastReadId && m.user_id !== userId).length
 }
 
 export default function Layout() {
   const { user, loading, refreshUser } = useAuth()
-  const unreadChat = useChatUnread(user?.id)
+  const unreadChat = useChatUnread(user)
 
   const { data: settings } = useQuery({
     queryKey: ['game-settings'],

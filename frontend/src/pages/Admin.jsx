@@ -228,6 +228,11 @@ export default function Admin() {
   const [clearChatConfirm, setClearChatConfirm] = useState(false)
   const [unverifyConfirm, setUnverifyConfirm] = useState(false)
   const [resetPointsConfirm, setResetPointsConfirm] = useState(false)
+  const [adminChatLeague, setAdminChatLeague] = useState(() => {
+    const s = localStorage.getItem('chat_last_league')
+    return s ? parseInt(s) : null
+  })
+  const [chatUnreadCounts, setChatUnreadCounts] = useState({})
 
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
@@ -275,6 +280,29 @@ export default function Admin() {
     queryKey: ['admin-leagues'],
     queryFn: () => api.get('/admin/leagues').then(r => r.data),
   })
+
+  useEffect(() => {
+    if (allLeagues.length === 0) return
+    if (adminChatLeague === null || !allLeagues.find(l => l.id === adminChatLeague)) {
+      const firstId = allLeagues[0].id
+      setAdminChatLeague(firstId)
+      localStorage.setItem('chat_last_league', String(firstId))
+    }
+    const check = async () => {
+      const counts = {}
+      await Promise.all(allLeagues.map(async (league) => {
+        const lastRead = parseInt(localStorage.getItem(`chat_last_read_${league.id}`) || '0')
+        try {
+          const res = await api.get('/chat/messages', { params: { league_id: league.id, after_id: lastRead, limit: 50 } })
+          counts[league.id] = res.data.filter(m => m.user_id !== user?.id).length
+        } catch {}
+      }))
+      setChatUnreadCounts(counts)
+    }
+    check()
+    const id = setInterval(check, 30000)
+    return () => clearInterval(id)
+  }, [allLeagues])
 
   const clearChat = useMutation({
     mutationFn: () => api.delete('/admin/chat'),
@@ -449,6 +477,31 @@ export default function Admin() {
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${gameSettings?.chat_enabled !== false ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
+        {allLeagues.length > 0 && (
+          <div>
+            <p className="text-xs text-gray-400 mb-2">Aktywna liga czatu:</p>
+            <div className="flex flex-wrap gap-2">
+              {allLeagues.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => {
+                    setAdminChatLeague(l.id)
+                    localStorage.setItem('chat_last_league', String(l.id))
+                    setChatUnreadCounts(prev => ({ ...prev, [l.id]: 0 }))
+                  }}
+                  className={`relative px-3 py-1 rounded-full text-xs font-mono font-medium transition ${adminChatLeague === l.id ? 'bg-brand-500 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'}`}
+                >
+                  {l.invite_code}
+                  {chatUnreadCounts[l.id] > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {chatUnreadCounts[l.id] > 9 ? '9+' : chatUnreadCounts[l.id]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="text-xs text-gray-400">Usuwa wszystkie wiadomości z czatu</p>
         {clearChatConfirm ? (
           <div className="flex items-center gap-2">
