@@ -146,7 +146,7 @@ export default function Chat() {
   }, [effectiveLeagueId])
 
   useEffect(() => {
-    const id = setInterval(async () => {
+    const poll = async () => {
       if (!latestIdRef.current) return
       try {
         const res = await api.get('/chat/messages', { params: leagueParams({ after_id: latestIdRef.current, limit: 50 }) })
@@ -161,8 +161,14 @@ export default function Chat() {
         })
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
       } catch {}
-    }, 30000)
-    return () => clearInterval(id)
+    }
+    let id = null
+    const start = () => { id = setInterval(poll, 30000) }
+    const stop = () => { clearInterval(id); id = null }
+    const onVisibility = () => { if (document.hidden) stop(); else { poll(); start() } }
+    start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [effectiveLeagueId])
 
   const typingParams = effectiveLeagueId !== null ? `?league_id=${effectiveLeagueId}` : ''
