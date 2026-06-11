@@ -150,7 +150,17 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.home_team_logo = teams["home"].get("logo")
     match.away_team_logo = teams["away"].get("logo")
     parsed_status = _parse_status(status_short)
-    # Status biezemy wylacznie z API — nie zamykamy meczu po czasie bez potwierdzenia.
+
+    # Blokuj downgrade statusu spowodowany opoznieniem API:
+    # LIVE → SCHEDULED oraz FINISHED → SCHEDULED/LIVE nigdy nie powinno sie zdarzac.
+    current_status = match.status
+    status_blocked = False
+    if current_status == MatchStatus.LIVE and parsed_status == MatchStatus.SCHEDULED:
+        parsed_status = MatchStatus.LIVE
+        status_blocked = True
+    elif current_status == MatchStatus.FINISHED and parsed_status in (MatchStatus.SCHEDULED, MatchStatus.LIVE):
+        parsed_status = MatchStatus.FINISHED
+        status_blocked = True
 
     match.kickoff = kickoff
     match.status = parsed_status
@@ -184,7 +194,9 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     if status_short == '1H' and match.second_half_started_at is not None:
         status_short = '2H'
 
-    match.status_short = status_short
+    # Gdy zablokowano downgrade, nie nadpisuj status_short — zachowaj aktualny
+    if not status_blocked:
+        match.status_short = status_short
 
     if api_minute is not None:
         match.minute = api_minute
