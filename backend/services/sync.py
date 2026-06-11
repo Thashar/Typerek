@@ -101,18 +101,34 @@ async def update_live_and_recent(db: Session) -> int:
 
     fixtures = await football_api.fetch_live_fixtures(codes_to_query)
 
+    # Dla meczy LIVE w bazie — sprawdz czy zakonczyly sie (fetch po ID, zakres dat)
     recent = db.query(Match).filter(
         Match.status == MatchStatus.LIVE,
     ).all()
     if recent:
         ids = [m.api_id for m in recent]
-        # Resolve competition codes from league api_ids to avoid querying all competitions
-        api_id_to_code = {v["id"]: k for k, v in football_api.COMPETITIONS.items()}
-        league_ids = {m.league_id for m in recent}
-        leagues = db.query(League).filter(League.id.in_(league_ids)).all()
-        comp_codes = list({api_id_to_code[l.api_id] for l in leagues if l.api_id in api_id_to_code})
+        r_league_ids = {m.league_id for m in recent}
+        r_leagues = db.query(League).filter(League.id.in_(r_league_ids)).all()
+        comp_codes = list({api_id_to_code[l.api_id] for l in r_leagues if l.api_id in api_id_to_code})
         finished_data = await football_api.fetch_fixtures_by_ids(ids, comp_codes or None)
         fixtures += finished_data
+
+    # Dla meczy SCHEDULED ktorych czas startu minal — odpytaj po zakresie dat.
+    # fetch_live_fixtures uzywa filtra ?status=IN_PLAY, ktory moze miec opoznienie
+    # w API. Endpoint po datach zwraca aktualny status (IN_PLAY/TIMED/itp.) i pozwala
+    # wykryc start meczu zanim filtr statusowy sie zaktualizuje.
+    already_fetched_ids = {f["fixture"]["id"] for f in fixtures}
+    scheduled_active = [
+        m for m in active_matches
+        if m.status == MatchStatus.SCHEDULED and m.api_id not in already_fetched_ids
+    ]
+    if scheduled_active:
+        s_ids = [m.api_id for m in scheduled_active]
+        s_league_ids = {m.league_id for m in scheduled_active}
+        s_leagues = db.query(League).filter(League.id.in_(s_league_ids)).all()
+        s_codes = list({api_id_to_code[l.api_id] for l in s_leagues if l.api_id in api_id_to_code})
+        started_data = await football_api.fetch_fixtures_by_ids(s_ids, s_codes or None)
+        fixtures += started_data
 
     updated = 0
     for f in fixtures:
