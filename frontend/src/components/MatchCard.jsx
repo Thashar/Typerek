@@ -29,7 +29,7 @@ function useLiveMinute(match) {
   if (match.status !== 'live') return { label: null, isHT: false }
   const short = match.status_short
   if (short === 'HT') return { label: 'Przerwa', isHT: true }
-  if (short === '2H') return { label: '2. połowa', isHT: false }
+  if (short === '2H' || match.second_half_started_at) return { label: '2. połowa', isHT: false }
   return { label: '1. połowa', isHT: false }
 }
 

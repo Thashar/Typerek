@@ -210,6 +210,15 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     if status_short == '1H' and match.second_half_started_at is not None:
         status_short = '2H'
 
+    # Fallback czasowy: jesli 1H trwa >60 min i API nadal nie zmienilo statusu,
+    # szacujemy ze mecz jest w 2H (45 min gry + ~15 min przerwy).
+    if status_short == '1H' and match.live_started_at is not None:
+        elapsed_total = (now - match.live_started_at).total_seconds() / 60
+        if elapsed_total > 60:
+            status_short = '2H'
+            if match.second_half_started_at is None:
+                match.second_half_started_at = match.live_started_at + timedelta(minutes=60)
+
     # Gdy zablokowano downgrade, nie nadpisuj status_short — zachowaj aktualny
     if not status_blocked:
         match.status_short = status_short
