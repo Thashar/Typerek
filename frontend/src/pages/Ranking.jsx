@@ -84,6 +84,21 @@ export default function Ranking() {
     liveData.changes.forEach(c => { changeMap[c.user_id] = c })
   }
 
+  // Gdy mecz trwa, sortuj widok wg projektowanych punktów live
+  const displayEntries = hasLive
+    ? [...entries]
+        .map(e => {
+          const change = changeMap[e.user_id]
+          return {
+            ...e,
+            _liveTotal: e.total_points + (change?.projected_extra_points ?? 0),
+            _liveExact: e.exact_hits + (change?.extra_exact_hits ?? 0),
+          }
+        })
+        .sort((a, b) => b._liveTotal - a._liveTotal || b._liveExact - a._liveExact)
+        .map((e, i) => ({ ...e, _liveRank: i + 1 }))
+    : entries
+
   if (!leagueId && myLeagues !== undefined) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -118,13 +133,14 @@ export default function Ranking() {
       )}
 
       <div className="space-y-2">
-        {entries.map((entry) => {
+        {displayEntries.map((entry) => {
           const isMe = user?.id === entry.user_id
           const change = changeMap[entry.user_id]
           const extraPts = change?.projected_extra_points ?? 0
           const extraExact = change?.extra_exact_hits ?? 0
           const extraOutcome = change?.extra_outcome_hits ?? 0
           const rankChange = change?.rank_change ?? 0
+          const displayRank = entry._liveRank ?? entry.rank
 
           return (
             <div
@@ -141,7 +157,7 @@ export default function Ranking() {
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/50 transition text-left"
               >
                 <span className="w-8 text-center font-bold text-lg shrink-0">
-                  {MEDAL[entry.rank - 1] ?? `#${entry.rank}`}
+                  {MEDAL[displayRank - 1] ?? `#${displayRank}`}
                 </span>
 
                 <div className="flex items-center gap-2 flex-1 min-w-0">
