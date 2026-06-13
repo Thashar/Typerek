@@ -9,8 +9,12 @@ import PageLoader from './components/PageLoader'
 function lazyWithRetry(factory) {
   return lazy(() =>
     factory().catch(() => {
-      window.location.reload()
-      return new Promise(() => {})
+      if (!sessionStorage.getItem('chunk-reloaded')) {
+        sessionStorage.setItem('chunk-reloaded', '1')
+        window.location.reload()
+        return new Promise(() => {})
+      }
+      return Promise.reject(new Error('Chunk load failed'))
     })
   )
 }
@@ -24,7 +28,10 @@ class ErrorBoundary extends Component {
     return { hasError: true }
   }
   componentDidCatch() {
-    window.location.reload()
+    if (!sessionStorage.getItem('error-reloaded')) {
+      sessionStorage.setItem('error-reloaded', '1')
+      window.location.reload()
+    }
   }
   render() {
     if (this.state.hasError) return <PageLoader />
