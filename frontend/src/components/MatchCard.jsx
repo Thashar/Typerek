@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react'
+import { useState, memo } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -24,81 +24,13 @@ function outcomeColor(prediction, match) {
   return 'text-gray-400'
 }
 
-function parseUtc(value) {
-  if (!value) return null
-  const s = String(value)
-  const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + 'Z'
-  const t = new Date(iso).getTime()
-  return Number.isFinite(t) ? t : null
-}
 
-// Komponuje etykiete minuty meczu zgodnie z wymaganiami:
-//   1H:  1' .. 45', potem 45' (+1'), 45' (+2') ...
-//   HT:  "Przerwa"
-//   2H:  45' .. 90', potem 90' (+1'), 90' (+2') ...
 function useLiveMinute(match) {
-  const [state, setState] = useState({ label: null, isHT: false, finished: false })
-
-  useEffect(() => {
-    if (match.status !== 'live') {
-      setState({ label: null, isHT: false, finished: false })
-      return
-    }
-
-    const compute = () => {
-      const short = match.status_short
-      const now = Date.now()
-
-      if (short === 'HT') {
-        setState({ label: 'Przerwa', isHT: true, finished: false })
-        return
-      }
-
-      // 2H: timestamp wymagany — bez niego nie wiemy, gdzie jest mecz.
-      if (short === '2H') {
-        const start = parseUtc(match.second_half_started_at)
-        if (!start) {
-          setState({ label: null, isHT: false, finished: false })
-          return
-        }
-        const elapsed = Math.max(0, Math.floor((now - start) / 60000))
-        const minute = 45 + elapsed
-        if (minute <= 90) {
-          setState({ label: `${minute}'`, isHT: false, finished: false })
-          return
-        }
-        const extra = elapsed - 45
-        // Bez auto-zamykania — czekamy na API. Tylko pokazujemy doliczone minuty.
-        setState({ label: `90' (+${extra}')`, isHT: false, finished: false })
-        return
-      }
-
-      // 1H lub generyczny LIVE: kotwica = live_started_at (z fallbackiem na kickoff).
-      const start = parseUtc(match.live_started_at) ?? parseUtc(match.kickoff)
-      if (!start) {
-        setState({ label: null, isHT: false, finished: false })
-        return
-      }
-      const elapsed = Math.max(0, Math.floor((now - start) / 60000))
-      if (elapsed < 45) {
-        setState({ label: `${elapsed + 1}'`, isHT: false, finished: false })
-        return
-      }
-      const extra = elapsed - 44
-      // Sanity: dlugo po koncu 1H bez przejscia na HT/2H — chowamy minute.
-      if (extra > 20) {
-        setState({ label: null, isHT: false, finished: false })
-        return
-      }
-      setState({ label: `45' (+${extra}')`, isHT: false, finished: false })
-    }
-
-    compute()
-    const id = setInterval(compute, 15000)
-    return () => clearInterval(id)
-  }, [match.status, match.status_short, match.live_started_at, match.second_half_started_at, match.kickoff])
-
-  return state
+  if (match.status !== 'live') return { label: null, isHT: false }
+  const short = match.status_short
+  if (short === 'HT') return { label: 'Przerwa', isHT: true }
+  if (short === '2H') return { label: '2. połowa', isHT: false }
+  return { label: '1. połowa', isHT: false }
 }
 
 function ScoreInput({ value, onChange, disabled }) {
