@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -8,6 +8,83 @@ import api from '../api/client'
 import { usePageTitle } from '../hooks/usePageTitle'
 
 const MEDAL = ['🥇', '🥈', '🥉']
+
+function useInstallPrompt() {
+  const [prompt, setPrompt] = useState(null)
+  const [installed, setInstalled] = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches
+  )
+
+  useEffect(() => {
+    const onPrompt = (e) => { e.preventDefault(); setPrompt(e) }
+    const onInstalled = () => { setInstalled(true); setPrompt(null) }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  const install = async () => {
+    if (!prompt) return
+    prompt.prompt()
+    await prompt.userChoice
+    setPrompt(null)
+  }
+
+  return { canInstall: !!prompt && !installed, installed, install }
+}
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+function InstallButton() {
+  const { canInstall, installed, install } = useInstallPrompt()
+  const [showIOSHint, setShowIOSHint] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!showIOSHint) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowIOSHint(false) }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler) }
+  }, [showIOSHint])
+
+  if (installed) return null
+
+  if (isIOS) {
+    return (
+      <div className="relative" ref={ref}>
+        <button
+          onClick={() => setShowIOSHint(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium rounded-lg transition"
+          aria-label="Dodaj do ekranu głównego"
+        >
+          📲 Zainstaluj
+        </button>
+        {showIOSHint && (
+          <div className="absolute right-0 top-9 z-50 w-64 bg-gray-800 border border-gray-700 rounded-xl p-3 text-xs text-gray-300 shadow-xl">
+            <p className="font-semibold text-white mb-1">Dodaj do ekranu głównego</p>
+            <p>W Safari kliknij ikonę <span className="font-bold">Udostępnij</span> (□↑) na dole ekranu, a następnie wybierz <span className="font-bold">„Dodaj do ekranu głównego"</span>.</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!canInstall) return null
+
+  return (
+    <button
+      onClick={install}
+      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium rounded-lg transition"
+      aria-label="Zainstaluj aplikację"
+    >
+      📲 Zainstaluj
+    </button>
+  )
+}
 
 export default function Ranking() {
   usePageTitle('Ranking')
@@ -110,7 +187,10 @@ export default function Ranking() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      <h2 className="text-xl font-bold">Ranking</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Ranking</h2>
+        <InstallButton />
+      </div>
 
       {tabs.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
