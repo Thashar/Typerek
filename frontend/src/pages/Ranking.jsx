@@ -10,18 +10,21 @@ import { usePageTitle } from '../hooks/usePageTitle'
 const MEDAL = ['🥇', '🥈', '🥉']
 
 function useInstallPrompt() {
-  const [prompt, setPrompt] = useState(null)
+  const [prompt, setPrompt] = useState(() => window.__pwaInstallPrompt ?? null)
   const [installed, setInstalled] = useState(
     () => window.matchMedia('(display-mode: standalone)').matches
   )
 
   useEffect(() => {
-    const onPrompt = (e) => { e.preventDefault(); setPrompt(e) }
-    const onInstalled = () => { setInstalled(true); setPrompt(null) }
+    const onPrompt = (e) => { setPrompt(e); window.__pwaInstallPrompt = e }
+    const onPromptReady = () => { if (window.__pwaInstallPrompt) setPrompt(window.__pwaInstallPrompt) }
+    const onInstalled = () => { setInstalled(true); setPrompt(null); window.__pwaInstallPrompt = null }
     window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('pwaPromptReady', onPromptReady)
     window.addEventListener('appinstalled', onInstalled)
     return () => {
       window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('pwaPromptReady', onPromptReady)
       window.removeEventListener('appinstalled', onInstalled)
     }
   }, [])
@@ -31,6 +34,7 @@ function useInstallPrompt() {
     prompt.prompt()
     await prompt.userChoice
     setPrompt(null)
+    window.__pwaInstallPrompt = null
   }
 
   return { prompt, installed, install }
