@@ -7,6 +7,10 @@ import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persist
 import App from './App'
 import './index.css'
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'))
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
