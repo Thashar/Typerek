@@ -11,6 +11,14 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'))
 }
 
+// Capture beforeinstallprompt before React mounts — the event can fire early
+window.__pwaInstallPrompt = null
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  window.__pwaInstallPrompt = e
+  window.dispatchEvent(new Event('pwaPromptReady'))
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

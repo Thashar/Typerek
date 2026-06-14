@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -9,6 +10,26 @@ from models.match import Match, MatchStatus
 from schemas.match import MatchResponse, MatchListResponse
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
+
+_TZ = ZoneInfo('Europe/Warsaw')
+
+
+def _today_warsaw() -> date:
+    return datetime.now(_TZ).date()
+
+
+def _date_to_utc_range(d: date) -> tuple[datetime, datetime]:
+    """Return naive UTC [start, end) for a given Warsaw calendar date."""
+    start = datetime(d.year, d.month, d.day, tzinfo=_TZ)
+    return (
+        start.astimezone(timezone.utc).replace(tzinfo=None),
+        (start + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None),
+    )
+
+
+def _warsaw_date_expr():
+    """SQLAlchemy expression: Warsaw calendar date of a UTC-stored kickoff."""
+    return func.date(func.timezone('Europe/Warsaw', func.timezone('UTC', Match.kickoff)))
 
 
 def _wc_league_id(db: Session) -> int | None:
@@ -23,11 +44,11 @@ def _wc_league_id(db: Session) -> int | None:
 @router.get("/leagues")
 def get_match_leagues(db: Session = Depends(get_db)):
     from models.league import League
-    today = date.today()
+    from_utc, _ = _date_to_utc_range(_today_warsaw())
     q = (
         db.query(League)
         .join(Match, Match.league_id == League.id)
-        .filter(Match.kickoff >= today)
+        .filter(Match.kickoff >= from_utc)
         .distinct()
         .order_by(League.name)
     )
@@ -39,19 +60,26 @@ def get_match_leagues(db: Session = Depends(get_db)):
 
 @router.get("/dates")
 def get_match_dates(
-    from_date: date = Query(default_factory=date.today),
-    to_date: date = Query(default_factory=lambda: date.today() + timedelta(days=180)),
+    from_date: date = Query(default=None),
+    to_date: date = Query(default=None),
     league_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    if from_date is None:
+        from_date = _today_warsaw()
+    if to_date is None:
+        to_date = from_date + timedelta(days=180)
+    from_utc, _ = _date_to_utc_range(from_date)
+    _, to_utc = _date_to_utc_range(to_date)
+    warsaw_date = _warsaw_date_expr()
     q = (
-        db.query(func.date(Match.kickoff))
-        .filter(Match.kickoff >= from_date, Match.kickoff <= to_date + timedelta(days=1))
+        db.query(warsaw_date)
+        .filter(Match.kickoff >= from_utc, Match.kickoff < to_utc)
     )
     effective_league = league_id or _wc_league_id(db)
     if effective_league:
         q = q.filter(Match.league_id == effective_league)
-    results = q.distinct().order_by(func.date(Match.kickoff)).all()
+    results = q.distinct().order_by(warsaw_date).all()
     return [str(r[0]) for r in results if r[0]]
 
 
@@ -97,14 +125,20 @@ def get_worldcup_matches(db: Session = Depends(get_db)):
 
 @router.get("", response_model=MatchListResponse)
 def get_matches(
-    from_date: date = Query(default_factory=date.today),
-    to_date: date = Query(default_factory=lambda: date.today() + timedelta(days=7)),
+    from_date: date = Query(default=None),
+    to_date: date = Query(default=None),
     status: MatchStatus | None = Query(default=None),
     league_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    if from_date is None:
+        from_date = _today_warsaw()
+    if to_date is None:
+        to_date = from_date + timedelta(days=7)
+    from_utc, _ = _date_to_utc_range(from_date)
+    _, to_utc = _date_to_utc_range(to_date)
     q = db.query(Match).options(joinedload(Match.league))
-    q = q.filter(Match.kickoff >= from_date, Match.kickoff < to_date + timedelta(days=1))
+    q = q.filter(Match.kickoff >= from_utc, Match.kickoff < to_utc)
     if status:
         q = q.filter(Match.status == status)
     effective_league = league_id or _wc_league_id(db)
@@ -117,11 +151,11 @@ def get_matches(
 
 @router.get("/today", response_model=MatchListResponse)
 def get_today(db: Session = Depends(get_db)):
-    today = date.today()
+    from_utc, to_utc = _date_to_utc_range(_today_warsaw())
     matches = (
         db.query(Match)
         .options(joinedload(Match.league))
-        .filter(Match.kickoff >= today, Match.kickoff < today + timedelta(days=1))
+        .filter(Match.kickoff >= from_utc, Match.kickoff < to_utc)
         .order_by(Match.kickoff)
         .all()
     )
