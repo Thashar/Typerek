@@ -187,6 +187,14 @@ def _upsert_fixture(db: Session, f: dict) -> int:
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
+    # Force-live: API moze miec opoznienie w zmianie statusu na IN_PLAY/PAUSED.
+    # Jesli mecz nadal SCHEDULED a kickoff minal >5 min temu — wymuszamy LIVE.
+    if match.status == MatchStatus.SCHEDULED and kickoff <= now - timedelta(minutes=5):
+        match.status = MatchStatus.LIVE
+        parsed_status = MatchStatus.LIVE
+        if not status_blocked and status_short in ('NS', ''):
+            status_short = '1H'
+
     api_minute = f["fixture"]["status"].get("elapsed")
 
     # Pierwsza polowa: kotwiczymy w kickoffie jesli mecz wystartowal na czas.
