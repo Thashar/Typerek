@@ -33,37 +33,40 @@ function useInstallPrompt() {
     setPrompt(null)
   }
 
-  return { canInstall: !!prompt && !installed, installed, install }
+  return { prompt, installed, install }
 }
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+// iOS/iPadOS: Safari nie wspiera beforeinstallprompt; iPadOS może podawac sie za macOS
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
 function InstallButton() {
-  const { canInstall, installed, install } = useInstallPrompt()
-  const [showIOSHint, setShowIOSHint] = useState(false)
+  const { prompt, installed, install } = useInstallPrompt()
+  const [showHint, setShowHint] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
-    if (!showIOSHint) return
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowIOSHint(false) }
+    if (!showHint) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowHint(false) }
     document.addEventListener('mousedown', handler)
     document.addEventListener('touchstart', handler)
     return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler) }
-  }, [showIOSHint])
+  }, [showHint])
 
   if (installed) return null
 
+  // Na iOS zawsze pokazuj instrukcję — beforeinstallprompt nie działa w Safari
   if (isIOS) {
     return (
       <div className="relative" ref={ref}>
         <button
-          onClick={() => setShowIOSHint(v => !v)}
+          onClick={() => setShowHint(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium rounded-lg transition"
           aria-label="Dodaj do ekranu głównego"
         >
           📲 Zainstaluj
         </button>
-        {showIOSHint && (
+        {showHint && (
           <div className="absolute right-0 top-9 z-50 w-64 bg-gray-800 border border-gray-700 rounded-xl p-3 text-xs text-gray-300 shadow-xl">
             <p className="font-semibold text-white mb-1">Dodaj do ekranu głównego</p>
             <p>W Safari kliknij ikonę <span className="font-bold">Udostępnij</span> (□↑) na dole ekranu, a następnie wybierz <span className="font-bold">„Dodaj do ekranu głównego"</span>.</p>
@@ -73,16 +76,24 @@ function InstallButton() {
     )
   }
 
-  if (!canInstall) return null
-
+  // Na innych przeglądarkach: jeśli prompt gotowy — kliknięcie go odpala
+  // Jeśli prompt jeszcze nie gotowy — pokaż instrukcję z menu przeglądarki
   return (
-    <button
-      onClick={install}
-      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium rounded-lg transition"
-      aria-label="Zainstaluj aplikację"
-    >
-      📲 Zainstaluj
-    </button>
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => { if (prompt) { install() } else { setShowHint(v => !v) } }}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium rounded-lg transition"
+        aria-label="Zainstaluj aplikację"
+      >
+        📲 Zainstaluj
+      </button>
+      {showHint && (
+        <div className="absolute right-0 top-9 z-50 w-64 bg-gray-800 border border-gray-700 rounded-xl p-3 text-xs text-gray-300 shadow-xl">
+          <p className="font-semibold text-white mb-1">Dodaj do ekranu głównego</p>
+          <p>W menu przeglądarki (⋮) wybierz <span className="font-bold">„Dodaj do ekranu głównego"</span> lub <span className="font-bold">„Zainstaluj aplikację"</span>.</p>
+        </div>
+      )}
+    </div>
   )
 }
 
