@@ -130,8 +130,12 @@ export default function Matches() {
 
   const loading = isLiveMode ? liveLoading : isLoading
 
-  // Poza trybem live: live mecze z wybranej ligi na górze, reszta bez duplikatów
-  const liveForLeague = isLiveMode ? [] : allLiveMatches.filter(m => m.league.id === selectedLeague)
+  // Poza trybem live: live mecze z wybranej ligi na górze tylko w widoku "dziś"
+  // (w kolejnych dniach terminarza ich nie pokazujemy — są w "Na żywo" i w "dziś")
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const liveForLeague = (isLiveMode || selectedDate !== todayStr)
+    ? []
+    : allLiveMatches.filter(m => m.league.id === selectedLeague)
   const liveIds = new Set(liveForLeague.map(m => m.id))
   const dayMatches = (data?.matches ?? []).filter(m => !liveIds.has(m.id))
   const matches = isLiveMode ? filteredLiveMatches : [...liveForLeague, ...dayMatches]

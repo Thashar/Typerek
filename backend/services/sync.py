@@ -207,19 +207,6 @@ def _upsert_fixture(db: Session, f: dict) -> int:
         if not status_blocked and status_short in ('NS', ''):
             status_short = '1H'
 
-    # Niezmiennik: mecz LIVE musi miec wynik. Brak wyniku oznacza, ze API nie
-    # potwierdzilo jeszcze startu (albo to pozostalosc po wczesniejszym force-live).
-    # Taki mecz pokazywal kreske w typach i byl pomijany w rankingu live — cofamy go
-    # do SCHEDULED, by sam sie naprawil, gdy API poda wynik.
-    if match.status == MatchStatus.LIVE and (match.home_score is None or match.away_score is None):
-        match.status = MatchStatus.SCHEDULED
-        parsed_status = MatchStatus.SCHEDULED
-        status_blocked = False
-        status_short = 'NS'
-        match.live_started_at = None
-        match.second_half_started_at = None
-        match.minute = None
-
     api_minute = f["fixture"]["status"].get("elapsed")
 
     # Pierwsza polowa: kotwiczymy w kickoffie jesli mecz wystartowal na czas.
