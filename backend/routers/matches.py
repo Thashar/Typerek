@@ -79,8 +79,8 @@ def get_match_dates(
     effective_league = league_id or _wc_league_id(db)
     if effective_league:
         q = q.filter(Match.league_id == effective_league)
-    results = q.distinct().order_by(warsaw_date).all()
-    return [str(r[0]) for r in results if r[0]]
+    results = q.distinct().all()
+    return sorted(str(r[0]) for r in results if r[0])
 
 
 @router.get("/worldcup")
