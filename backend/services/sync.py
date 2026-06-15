@@ -180,16 +180,28 @@ def _upsert_fixture(db: Session, f: dict) -> int:
 
     match.kickoff = kickoff
     match.status = parsed_status
-    match.home_score = goals.get("home")
-    match.away_score = goals.get("away")
+    # Nie nadpisuj realnego wyniku nullem — API potrafi chwilowo zwrocic mecz bez
+    # goli (opoznienie/glitch), co wczesniej kasowalo wynik trwajacego meczu.
+    new_home = goals.get("home")
+    new_away = goals.get("away")
+    if new_home is not None:
+        match.home_score = new_home
+    if new_away is not None:
+        match.away_score = new_away
     match.stage = f.get("stage")
     match.match_group = f.get("group")
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Force-live: API moze miec opoznienie w zmianie statusu na IN_PLAY/PAUSED.
-    # Jesli mecz nadal SCHEDULED a kickoff minal >5 min temu — wymuszamy LIVE.
-    if match.status == MatchStatus.SCHEDULED and kickoff <= now - timedelta(minutes=5):
+    # Wymuszamy LIVE tylko gdy mamy juz wynik z API — inaczej powstalby mecz "live"
+    # bez wyniku, ktory nie pokazuje sie w typach i nie wplywa na ranking live.
+    if (
+        match.status == MatchStatus.SCHEDULED
+        and kickoff <= now - timedelta(minutes=5)
+        and match.home_score is not None
+        and match.away_score is not None
+    ):
         match.status = MatchStatus.LIVE
         parsed_status = MatchStatus.LIVE
         if not status_blocked and status_short in ('NS', ''):
