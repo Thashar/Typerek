@@ -323,7 +323,7 @@ function KnockoutBracket({ knockout }) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto scrollbar-hide">
         <div style={{ position: 'relative', height: totalH + HEADER, width: totalW, minWidth: totalW }}>
           {stages.map((stage, ri) => {
             const colLeft = ri * (CARD_W + ROUND_GAP)
@@ -377,17 +377,6 @@ function KnockoutBracket({ knockout }) {
         </div>
       </div>
 
-      {/* Third place match — separate from main bracket */}
-      {thirdPlace.length > 0 && (
-        <div className="bg-gray-800 rounded-xl overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-700">
-            <h3 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Mecz o 3. miejsce</h3>
-          </div>
-          <div className="divide-y divide-gray-700/50">
-            {thirdPlace.map(m => <MatchRow key={m.id} m={m} />)}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
