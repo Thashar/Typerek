@@ -321,10 +321,20 @@ function KnockoutBracket({ knockout }) {
   const totalW = stages.length * (CARD_W + ROUND_GAP) - ROUND_GAP
   const CONN = '#374151'
 
+  // Mecz o 3. miejsce — pod finałem, w ostatniej kolumnie, bez kresek łączących
+  const finalRi = stages.length - 1
+  const finalLeft = finalRi * (CARD_W + ROUND_GAP)
+  const finalBottom = HEADER + bracketTop(finalRi, 0) + BASE_H
+  const thirdLabelTop = finalBottom + 28
+  const thirdCardTop = thirdLabelTop + 20
+  const containerH = thirdPlace.length > 0
+    ? Math.max(totalH + HEADER, thirdCardTop + BASE_H)
+    : totalH + HEADER
+
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto scrollbar-thin">
-        <div style={{ position: 'relative', height: totalH + HEADER, width: totalW, minWidth: totalW }}>
+        <div style={{ position: 'relative', height: containerH, width: totalW, minWidth: totalW }}>
           {stages.map((stage, ri) => {
             const colLeft = ri * (CARD_W + ROUND_GAP)
             const expectedCount = Math.ceil(firstCount / (1 << ri))
@@ -374,6 +384,21 @@ function KnockoutBracket({ knockout }) {
               </Fragment>
             )
           })}
+
+          {/* Mecz o 3. miejsce — pod finałem, bez kresek łączących */}
+          {thirdPlace.length > 0 && (
+            <Fragment>
+              <div
+                className="text-xs font-bold text-brand-400 text-center truncate"
+                style={{ position: 'absolute', left: finalLeft, top: thirdLabelTop, width: CARD_W, lineHeight: '14px' }}
+              >
+                Mecz o 3. miejsce
+              </div>
+              <div style={{ position: 'absolute', left: finalLeft, top: thirdCardTop, width: CARD_W }}>
+                <BracketCard match={thirdPlace[0]} />
+              </div>
+            </Fragment>
+          )}
         </div>
       </div>
 
