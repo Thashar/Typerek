@@ -253,32 +253,36 @@ export default function WorldCup() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="text-xl">🌍</span>
-        <h1 className="text-lg font-bold text-white">FIFA World Cup 2026</h1>
+    <div className="max-w-2xl mx-auto px-4">
+      <div className="sticky top-0 z-10 bg-gray-900 pt-4 pb-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🌍</span>
+          <h1 className="text-lg font-bold text-white">FIFA World Cup 2026</h1>
+        </div>
+
+        <div className="flex gap-1 bg-gray-800 p-1 rounded-xl">
+          <button
+            onClick={() => setTab('matches')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'matches' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            Mecze
+          </button>
+          <button
+            onClick={() => setTab('group_stage')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'group_stage' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            Faza grupowa
+          </button>
+          <button
+            onClick={() => setTab('knockout')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'knockout' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          >
+            Faza pucharowa
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-1 bg-gray-800 p-1 rounded-xl">
-        <button
-          onClick={() => setTab('matches')}
-          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'matches' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-        >
-          Mecze
-        </button>
-        <button
-          onClick={() => setTab('group_stage')}
-          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'group_stage' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-        >
-          Faza grupowa
-        </button>
-        <button
-          onClick={() => setTab('knockout')}
-          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'knockout' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-        >
-          Faza pucharowa
-        </button>
-      </div>
+      <div className="space-y-3 pb-4">
 
       {tab === 'matches' && (
         <div className="space-y-3">
@@ -315,6 +319,8 @@ export default function WorldCup() {
           }
         </div>
       )}
+
+      </div>
     </div>
   )
 }
