@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
@@ -216,6 +216,10 @@ const KNOCKOUT_ORDER = ['ROUND_OF_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_P
 export default function WorldCup() {
   const [tab, setTab] = useState('matches')
   const { user } = useAuth()
+
+  useEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0 })
+  }, [tab])
 
   const { data, isLoading } = useQuery({
     queryKey: ['worldcup'],

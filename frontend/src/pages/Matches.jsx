@@ -140,6 +140,10 @@ export default function Matches() {
   const dayMatches = (data?.matches ?? []).filter(m => !liveIds.has(m.id))
   const matches = isLiveMode ? filteredLiveMatches : [...liveForLeague, ...dayMatches]
 
+  useEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0 })
+  }, [selectedDate, selectedLeague])
+
   const prevDate = () => {
     const idx = dates.indexOf(selectedDate)
     if (idx > 0) setSelectedDate(dates[idx - 1])
