@@ -91,10 +91,130 @@ function KnockoutSection({ stage, matches, predMap }) {
   )
 }
 
+function computeStandings(matches) {
+  const teams = {}
+
+  const ensure = (name, logo) => {
+    if (!teams[name]) {
+      teams[name] = { name, logo, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0 }
+    }
+  }
+
+  for (const m of matches) {
+    ensure(m.home_team, m.home_team_logo)
+    ensure(m.away_team, m.away_team_logo)
+
+    if ((m.status === 'finished' || m.status === 'live') && m.home_score != null && m.away_score != null) {
+      const h = teams[m.home_team]
+      const a = teams[m.away_team]
+      const hs = Number(m.home_score)
+      const as_ = Number(m.away_score)
+
+      h.P++; a.P++
+      h.GF += hs; h.GA += as_
+      a.GF += as_; a.GA += hs
+
+      if (hs > as_) { h.W++; a.L++ }
+      else if (hs < as_) { a.W++; h.L++ }
+      else { h.D++; a.D++ }
+    }
+  }
+
+  return Object.values(teams).sort((a, b) => {
+    const ptsA = a.W * 3 + a.D
+    const ptsB = b.W * 3 + b.D
+    if (ptsB !== ptsA) return ptsB - ptsA
+    const gdA = a.GF - a.GA
+    const gdB = b.GF - b.GA
+    if (gdB !== gdA) return gdB - gdA
+    return b.GF - a.GF
+  })
+}
+
+function GroupTable({ name, matches }) {
+  const standings = computeStandings(matches)
+
+  return (
+    <div className="bg-gray-800 rounded-xl overflow-hidden">
+      <div className="px-3 py-2 border-b border-gray-700">
+        <h3 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Grupa {name}</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-500 border-b border-gray-700/50">
+              <th className="py-2 pl-3 pr-1 text-left w-6">#</th>
+              <th className="py-2 px-2 text-left">Drużyna</th>
+              <th className="py-2 px-1.5 text-center">M</th>
+              <th className="py-2 px-1.5 text-center">W</th>
+              <th className="py-2 px-1.5 text-center">R</th>
+              <th className="py-2 px-1.5 text-center">P</th>
+              <th className="py-2 px-1.5 text-center">G</th>
+              <th className="py-2 px-1.5 text-center">+/-</th>
+              <th className="py-2 pl-1.5 pr-3 text-center font-semibold text-gray-400">Pkt</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700/30">
+            {standings.map((team, i) => {
+              const pts = team.W * 3 + team.D
+              const gd = team.GF - team.GA
+              const advancing = i < 2
+              const maybe = i === 2
+
+              return (
+                <tr
+                  key={team.name}
+                  className={advancing ? 'bg-green-900/10' : maybe ? 'bg-yellow-900/10' : ''}
+                >
+                  <td className="py-2.5 pl-3 pr-1">
+                    <div className="flex items-center gap-1">
+                      <span className={`font-bold ${advancing ? 'text-green-400' : maybe ? 'text-yellow-400' : 'text-gray-500'}`}>
+                        {i + 1}
+                      </span>
+                      {(advancing || maybe) && (
+                        <span className={`w-0.5 h-3.5 rounded-full ${advancing ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2.5 px-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {team.logo && <img src={team.logo} className="w-4 h-4 object-contain shrink-0" alt="" />}
+                      <span className="text-white font-medium truncate">{team.name}</span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 px-1.5 text-center text-gray-400">{team.P}</td>
+                  <td className="py-2.5 px-1.5 text-center text-gray-400">{team.W}</td>
+                  <td className="py-2.5 px-1.5 text-center text-gray-400">{team.D}</td>
+                  <td className="py-2.5 px-1.5 text-center text-gray-400">{team.L}</td>
+                  <td className="py-2.5 px-1.5 text-center text-gray-400 whitespace-nowrap">{team.GF}:{team.GA}</td>
+                  <td className="py-2.5 px-1.5 text-center text-gray-400">
+                    {gd > 0 ? `+${gd}` : gd}
+                  </td>
+                  <td className="py-2.5 pl-1.5 pr-3 text-center font-bold text-white">{pts}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-3 py-2 border-t border-gray-700/50 flex gap-4 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5">
+          <span className="w-0.5 h-3 rounded-full bg-green-500" />
+          <span>Awansuje</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-0.5 h-3 rounded-full bg-yellow-500" />
+          <span>Potencjalny awans (8 najlepszych 3. miejsc)</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const KNOCKOUT_ORDER = ['ROUND_OF_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'FINAL']
 
 export default function WorldCup() {
-  const [tab, setTab] = useState('groups')
+  const [tab, setTab] = useState('matches')
   const { user } = useAuth()
 
   const { data, isLoading } = useQuery({
@@ -141,10 +261,16 @@ export default function WorldCup() {
 
       <div className="flex gap-1 bg-gray-800 p-1 rounded-xl">
         <button
-          onClick={() => setTab('groups')}
-          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'groups' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+          onClick={() => setTab('matches')}
+          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'matches' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
         >
-          Grupy
+          Mecze
+        </button>
+        <button
+          onClick={() => setTab('group_stage')}
+          className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'group_stage' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+        >
+          Faza grupowa
         </button>
         <button
           onClick={() => setTab('knockout')}
@@ -154,14 +280,28 @@ export default function WorldCup() {
         </button>
       </div>
 
-      {tab === 'groups' && (
+      {tab === 'matches' && (
         <div className="space-y-3">
           {hasGroups
-            ? Object.entries(groups).map(([name, matches]) => (
+            ? Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([name, matches]) => (
                 <GroupCard key={name} name={name} matches={matches} predMap={predMap} />
               ))
             : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów grupowych</p>
           }
+        </div>
+      )}
+
+      {tab === 'group_stage' && (
+        <div className="space-y-3">
+          {hasGroups
+            ? Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([name, matches]) => (
+                <GroupTable key={name} name={name} matches={matches} />
+              ))
+            : <p className="text-center text-gray-500 py-8 text-sm">Brak danych grupowych</p>
+          }
+          <p className="text-center text-xs text-gray-600 pb-2">
+            Format: 12 grup × 4 drużyny — awansują 2 pierwsze z każdej grupy + 8 najlepszych 3. miejsc
+          </p>
         </div>
       )}
 
