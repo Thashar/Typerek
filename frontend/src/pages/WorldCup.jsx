@@ -323,7 +323,7 @@ function KnockoutBracket({ knockout }) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto scrollbar-hide">
+      <div className="overflow-x-auto scrollbar-thin">
         <div style={{ position: 'relative', height: totalH + HEADER, width: totalW, minWidth: totalW }}>
           {stages.map((stage, ri) => {
             const colLeft = ri * (CARD_W + ROUND_GAP)
