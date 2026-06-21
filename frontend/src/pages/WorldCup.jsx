@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
@@ -216,6 +216,191 @@ function GroupTable({ name, matches }) {
 
 const KNOCKOUT_ORDER = ['LAST_32', 'ROUND_OF_16', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'THIRD_PLACE', 'THIRD_PLACE_FINAL', 'FINAL']
 
+// --- Bracket (Drzewko) ---
+
+const CARD_W = 148
+const ROUND_GAP = 20
+const BASE_H = 76  // card height: 26 home + 1 divider + 26 away + 1 divider + 22 date
+const SLOT = BASE_H + 4  // vertical space per R1 match (card + gap)
+const BRACKET_MAIN = ['LAST_32', 'LAST_16', 'ROUND_OF_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL']
+
+function bracketTop(roundIdx, matchIdx) {
+  const span = 1 << roundIdx  // 2^roundIdx
+  return SLOT * (matchIdx * span + (span - 1) / 2)
+}
+
+function BracketCard({ match }) {
+  if (!match) {
+    return (
+      <div className="rounded-lg border border-gray-700/30 bg-gray-800/20 flex flex-col justify-around items-center" style={{ height: BASE_H }}>
+        <div className="h-px w-10 bg-gray-700/50 rounded" />
+        <div className="h-px w-10 bg-gray-700/50 rounded" />
+      </div>
+    )
+  }
+
+  const isLive = match.status === 'live'
+  const isPlayed = match.status === 'finished' || isLive
+  const hs = match.home_score
+  const as_ = match.away_score
+  const homeWins = isPlayed && hs != null && as_ != null && hs > as_
+  const awayWins = isPlayed && hs != null && as_ != null && as_ > hs
+  const homeTbd = !match.home_team || match.home_team === 'TBD'
+  const awayTbd = !match.away_team || match.away_team === 'TBD'
+  const dateStr = formatInTimeZone(new Date(match.kickoff + 'Z'), 'Europe/Warsaw', 'd MMM · HH:mm', { locale: pl })
+
+  return (
+    <div
+      className={`rounded-lg border overflow-hidden bg-gray-800 ${isLive ? 'border-red-500/60' : 'border-gray-700'}`}
+      style={{ height: BASE_H }}
+    >
+      {/* Home team */}
+      <div className={`flex items-center gap-1 px-2 ${homeWins ? 'bg-white/5' : ''}`} style={{ height: 26 }}>
+        {!homeTbd && match.home_team_logo
+          ? <img src={match.home_team_logo} className="w-3.5 h-3.5 object-contain shrink-0" alt="" />
+          : <div className="w-3.5 shrink-0" />
+        }
+        <span className={`text-xs flex-1 truncate min-w-0 ${homeTbd ? 'text-gray-600 italic' : homeWins ? 'text-white font-bold' : 'text-gray-300'}`}>
+          {match.home_team || 'TBD'}
+        </span>
+        {isPlayed && hs != null && (
+          <span className={`text-xs font-bold ml-1 shrink-0 ${homeWins ? 'text-white' : 'text-gray-500'}`}>{hs}</span>
+        )}
+      </div>
+      <div className={`h-px ${isLive ? 'bg-red-500/30' : 'bg-gray-700/40'}`} />
+      {/* Away team */}
+      <div className={`flex items-center gap-1 px-2 ${awayWins ? 'bg-white/5' : ''}`} style={{ height: 26 }}>
+        {!awayTbd && match.away_team_logo
+          ? <img src={match.away_team_logo} className="w-3.5 h-3.5 object-contain shrink-0" alt="" />
+          : <div className="w-3.5 shrink-0" />
+        }
+        <span className={`text-xs flex-1 truncate min-w-0 ${awayTbd ? 'text-gray-600 italic' : awayWins ? 'text-white font-bold' : 'text-gray-300'}`}>
+          {match.away_team || 'TBD'}
+        </span>
+        {isPlayed && as_ != null && (
+          <span className={`text-xs font-bold ml-1 shrink-0 ${awayWins ? 'text-white' : 'text-gray-500'}`}>{as_}</span>
+        )}
+      </div>
+      <div className={`h-px ${isLive ? 'bg-red-500/30' : 'bg-gray-700/40'}`} />
+      {/* Date / LIVE */}
+      <div className="flex items-center justify-center" style={{ height: 22 }}>
+        {isLive
+          ? <span className="text-xs text-red-400 font-bold animate-pulse">● LIVE</span>
+          : <span className="text-xs text-gray-600">{dateStr}</span>
+        }
+      </div>
+    </div>
+  )
+}
+
+function KnockoutBracket({ knockout }) {
+  const stages = BRACKET_MAIN
+    .filter(s => knockout[s]?.length > 0)
+    .map(s => ({
+      key: s,
+      label: STAGE_LABELS[s] || s,
+      matches: [...knockout[s]].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff)),
+    }))
+
+  const thirdPlace = [
+    ...(knockout['THIRD_PLACE'] || []),
+    ...(knockout['THIRD_PLACE_FINAL'] || []),
+  ].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
+
+  if (stages.length === 0) {
+    return (
+      <p className="text-center text-gray-500 py-12 text-sm">
+        Brak danych fazy pucharowej — mecze zostaną dodane po zakończeniu fazy grupowej.
+      </p>
+    )
+  }
+
+  const firstCount = stages[0].matches.length
+  const totalH = firstCount * SLOT - 4
+  const HEADER = 28
+  const totalW = stages.length * (CARD_W + ROUND_GAP) - ROUND_GAP
+  const CONN = '#374151'
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto">
+        <div style={{ position: 'relative', height: totalH + HEADER, width: totalW, minWidth: totalW }}>
+          {stages.map((stage, ri) => {
+            const colLeft = ri * (CARD_W + ROUND_GAP)
+            const expectedCount = Math.ceil(firstCount / (1 << ri))
+            // Pad with nulls so alignment stays correct even if API is missing matches
+            const matches = [...stage.matches]
+            while (matches.length < expectedCount) matches.push(null)
+
+            return (
+              <Fragment key={stage.key}>
+                {/* Column label */}
+                <div
+                  className="text-xs font-bold text-brand-400 text-center truncate"
+                  style={{ position: 'absolute', left: colLeft, top: 0, width: CARD_W, lineHeight: `${HEADER - 6}px` }}
+                >
+                  {stage.label}
+                </div>
+
+                {/* Match cards */}
+                {matches.map((m, mi) => (
+                  <div
+                    key={mi}
+                    style={{ position: 'absolute', left: colLeft, top: HEADER + bracketTop(ri, mi), width: CARD_W }}
+                  >
+                    <BracketCard match={m} />
+                  </div>
+                ))}
+
+                {/* Connectors to the next round */}
+                {ri < stages.length - 1 && matches.map((_, mi) => {
+                  if (mi % 2 !== 0) return null
+                  const c1 = HEADER + bracketTop(ri, mi) + BASE_H / 2
+                  const c2 = HEADER + bracketTop(ri, mi + 1) + BASE_H / 2
+                  const cNext = HEADER + bracketTop(ri + 1, Math.floor(mi / 2)) + BASE_H / 2
+                  const x0 = colLeft + CARD_W
+                  const xMid = x0 + ROUND_GAP / 2
+                  const x1 = x0 + ROUND_GAP
+
+                  return (
+                    <Fragment key={`c${mi}`}>
+                      <div style={{ position: 'absolute', left: x0, top: c1 - 0.5, width: xMid - x0, height: 1, background: CONN }} />
+                      <div style={{ position: 'absolute', left: x0, top: c2 - 0.5, width: xMid - x0, height: 1, background: CONN }} />
+                      <div style={{ position: 'absolute', left: xMid - 0.5, top: Math.min(c1, c2), width: 1, height: Math.abs(c2 - c1), background: CONN }} />
+                      <div style={{ position: 'absolute', left: xMid, top: cNext - 0.5, width: x1 - xMid, height: 1, background: CONN }} />
+                    </Fragment>
+                  )
+                })}
+              </Fragment>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Third place match — separate from main bracket */}
+      {thirdPlace.length > 0 && (
+        <div className="bg-gray-800 rounded-xl overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-700">
+            <h3 className="text-xs font-bold text-brand-400 uppercase tracking-wider">Mecz o 3. miejsce</h3>
+          </div>
+          <div className="divide-y divide-gray-700/50">
+            {thirdPlace.map(m => <MatchRow key={m.id} m={m} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Main component ---
+
+const TABS = [
+  { key: 'matches',      label: 'Faza grupowa' },
+  { key: 'group_stage',  label: 'Tabele grup' },
+  { key: 'knockout',     label: 'Faza pucharowa' },
+  { key: 'bracket',      label: 'Drzewko' },
+]
+
 export default function WorldCup() {
   const [tab, setTab] = useState('matches')
   const { user } = useAuth()
@@ -268,67 +453,62 @@ export default function WorldCup() {
         </div>
 
         <div className="flex gap-1 bg-gray-800 p-1 rounded-xl">
-          <button
-            onClick={() => setTab('matches')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'matches' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-          >
-            Mecze
-          </button>
-          <button
-            onClick={() => setTab('group_stage')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'group_stage' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-          >
-            Faza grupowa
-          </button>
-          <button
-            onClick={() => setTab('knockout')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${tab === 'knockout' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-          >
-            Faza pucharowa
-          </button>
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${tab === key ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="space-y-3 pb-4">
 
-      {tab === 'matches' && (
-        <div className="space-y-3">
-          {hasGroups
-            ? Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([name, matches]) => (
-                <GroupCard key={name} name={name} matches={matches} predMap={predMap} />
-              ))
-            : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów grupowych</p>
-          }
-        </div>
-      )}
+        {tab === 'matches' && (
+          <div className="space-y-3">
+            {hasGroups
+              ? Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([name, matches]) => (
+                  <GroupCard key={name} name={name} matches={matches} predMap={predMap} />
+                ))
+              : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów grupowych</p>
+            }
+          </div>
+        )}
 
-      {tab === 'group_stage' && (
-        <div className="space-y-3">
-          {hasGroups
-            ? Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([name, matches]) => (
-                <GroupTable key={name} name={name} matches={matches} />
-              ))
-            : <p className="text-center text-gray-500 py-8 text-sm">Brak danych grupowych</p>
-          }
-          <p className="text-center text-xs text-gray-600 pb-2">
-            Format: 12 grup × 4 drużyny — awansują 2 pierwsze z każdej grupy + 8 najlepszych 3. miejsc
-          </p>
-        </div>
-      )}
+        {tab === 'group_stage' && (
+          <div className="space-y-3">
+            {hasGroups
+              ? Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([name, matches]) => (
+                  <GroupTable key={name} name={name} matches={matches} />
+                ))
+              : <p className="text-center text-gray-500 py-8 text-sm">Brak danych grupowych</p>
+            }
+            <p className="text-center text-xs text-gray-600 pb-2">
+              Format: 12 grup × 4 drużyny — awansują 2 pierwsze z każdej grupy + 8 najlepszych 3. miejsc
+            </p>
+          </div>
+        )}
 
-      {tab === 'knockout' && (
-        <div className="space-y-3">
-          {hasKnockout
-            ? [
-                ...KNOCKOUT_ORDER.filter(s => knockout[s]),
-                ...Object.keys(knockout).filter(s => !KNOCKOUT_ORDER.includes(s)),
-              ].map(stage => (
-                <KnockoutSection key={stage} stage={stage} matches={knockout[stage]} predMap={predMap} />
-              ))
-            : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów fazy pucharowej</p>
-          }
-        </div>
-      )}
+        {tab === 'knockout' && (
+          <div className="space-y-3">
+            {hasKnockout
+              ? [
+                  ...KNOCKOUT_ORDER.filter(s => knockout[s]),
+                  ...Object.keys(knockout).filter(s => !KNOCKOUT_ORDER.includes(s)),
+                ].map(stage => (
+                  <KnockoutSection key={stage} stage={stage} matches={knockout[stage]} predMap={predMap} />
+                ))
+              : <p className="text-center text-gray-500 py-8 text-sm">Brak meczów fazy pucharowej</p>
+            }
+          </div>
+        )}
+
+        {tab === 'bracket' && (
+          <KnockoutBracket knockout={knockout} />
+        )}
 
       </div>
     </div>
