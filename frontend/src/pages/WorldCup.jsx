@@ -240,12 +240,47 @@ function cmpTeam(a, b) {
   return b.GF - a.GF
 }
 
+// Pewność pozycji w grupie liczona TYLKO z rozegranych meczów: drużyna ma
+// zagwarantowane miejsce, jeśli żaden wynik pozostałych meczów już tego nie zmieni.
+// Zwraca nazwy drużyn pewnych 1. i 2. miejsca (lub null).
+function computeCertainty(matches) {
+  const teams = {}
+  const ensure = n => { if (!teams[n]) teams[n] = { name: n, pts: 0, rem: 0 } }
+  for (const m of matches) {
+    ensure(m.home_team); ensure(m.away_team)
+    if (m.status === 'finished' && m.home_score != null && m.away_score != null) {
+      const hs = +m.home_score, as_ = +m.away_score
+      if (hs > as_) teams[m.home_team].pts += 3
+      else if (hs < as_) teams[m.away_team].pts += 3
+      else { teams[m.home_team].pts += 1; teams[m.away_team].pts += 1 }
+    } else {
+      // nierozegrany (zaplanowany lub trwający) — punkty wciąż możliwe dla obu
+      teams[m.home_team].rem += 1
+      teams[m.away_team].rem += 1
+    }
+  }
+  const arr = Object.values(teams)
+  // A na pewno kończy nad B (po samych punktach, najgorszy wariant A vs najlepszy B)
+  const dominates = (A, B) => A.pts > B.pts + 3 * B.rem
+  let winner = null, runner = null
+  for (const T of arr) {
+    const others = arr.filter(x => x !== T)
+    if (others.length && others.every(U => dominates(T, U))) winner = T.name
+    const above = others.filter(U => dominates(U, T)).length
+    const below = others.filter(U => dominates(T, U)).length
+    if (others.length === 3 && above === 1 && below === 2) runner = T.name
+  }
+  return { winner, runner }
+}
+
 // Projekcja: na podstawie aktualnych tabel grup wylicza, kto powinien trafić
 // do którego slotu fazy pucharowej (1. i 2. miejsca + 8 najlepszych z 3. miejsc).
 function buildProjection(groups) {
   const standings = {}
+  const certainty = {}
   for (const [name, matches] of Object.entries(groups)) {
     standings[name] = computeStandings(matches)
+    certainty[name] = computeCertainty(matches)
   }
   const letters = Object.keys(standings)
 
@@ -267,20 +302,28 @@ function buildProjection(groups) {
     runner: l => standings[l]?.[1],
     thirdOf: l => standings[l]?.[2],
     thirdForWinner,
+    certainty,
   }
 }
 
 // Slot: 'WX' = zwycięzca grupy X, 'RX' = wicelider grupy X,
-// 'TX' = 3. miejsce przypisane do zwycięzcy grupy X
+// 'TX' = 3. miejsce przypisane do zwycięzcy grupy X.
+// Zwraca { team, locked } — locked=true gdy pozycja jest już matematycznie pewna.
 function resolveSlot(code, proj) {
   if (!code) return null
   const kind = code[0]
   const g = code[1]
-  if (kind === 'W') return proj.winner(g)
-  if (kind === 'R') return proj.runner(g)
+  if (kind === 'W') {
+    const team = proj.winner(g)
+    return { team, locked: !!team && proj.certainty[g]?.winner === team.name }
+  }
+  if (kind === 'R') {
+    const team = proj.runner(g)
+    return { team, locked: !!team && proj.certainty[g]?.runner === team.name }
+  }
   if (kind === 'T') {
     const tg = proj.thirdForWinner[g]
-    return tg ? proj.thirdOf(tg) : null
+    return { team: tg ? proj.thirdOf(tg) : null, locked: false }
   }
   return null
 }
@@ -312,8 +355,10 @@ function teamCell(key, apiName, apiLogo, slotCode, proj, store) {
     return t
   }
   if (store[key]) return store[key]
-  const t = resolveSlot(slotCode, proj)
-  return t ? { name: t.name, logo: t.logo, status: 'projected' } : { name: null, logo: null, status: 'tbd' }
+  const r = resolveSlot(slotCode, proj)
+  if (!r || !r.team) return { name: null, logo: null, status: 'tbd' }
+  // locked = pozycja w grupie już matematycznie pewna → traktujemy jak potwierdzoną (zielona)
+  return { name: r.team.name, logo: r.team.logo, status: r.locked ? 'confirmed' : 'projected' }
 }
 
 // Buduje znormalizowaną kartę: dane drużyn (z API gdy potwierdzone, inaczej z projekcji)
