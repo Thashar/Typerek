@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { formatInTimeZone } from 'date-fns-tz'
 import { pl } from 'date-fns/locale'
@@ -302,20 +302,25 @@ function alignApi(apiList, positions) {
   })
 }
 
-function teamFromApi(name, logo) {
-  return name && name !== 'TBD' ? { name, logo, status: 'confirmed' } : null
-}
-
-function projTeam(slotCode, proj) {
+// Wybiera drużynę dla slotu: potwierdzona z API ma priorytet i jest "lepka"
+// (raz potwierdzony slot nie wraca do prognozy, nawet jeśli API chwilowo zwróci TBD —
+// football-data.org potrafi przejściowo cofnąć przypisaną drużynę przy synchronizacji).
+function teamCell(key, apiName, apiLogo, slotCode, proj, store) {
+  if (apiName && apiName !== 'TBD') {
+    const t = { name: apiName, logo: apiLogo, status: 'confirmed' }
+    store[key] = t
+    return t
+  }
+  if (store[key]) return store[key]
   const t = resolveSlot(slotCode, proj)
   return t ? { name: t.name, logo: t.logo, status: 'projected' } : { name: null, logo: null, status: 'tbd' }
 }
 
 // Buduje znormalizowaną kartę: dane drużyn (z API gdy potwierdzone, inaczej z projekcji)
 // + wynik/status z meczu API jeśli istnieje.
-function buildCard(api, homeSlot, awaySlot, pos, proj) {
-  const home = teamFromApi(api?.home_team, api?.home_team_logo) || projTeam(homeSlot, proj)
-  const away = teamFromApi(api?.away_team, api?.away_team_logo) || projTeam(awaySlot, proj)
+function buildCard(api, pos, proj, store) {
+  const home = teamCell(pos.no + 'H', api?.home_team, api?.home_team_logo, pos.home, proj, store)
+  const away = teamCell(pos.no + 'A', api?.away_team, api?.away_team_logo, pos.away, proj, store)
   const isLive = api?.status === 'live'
   const isFinished = api?.status === 'finished'
   const kickoff = api ? new Date(api.kickoff + 'Z') : (pos.dt ? new Date(pos.dt) : null)
@@ -400,6 +405,9 @@ const BRACKET_ROUNDS = [
 ]
 
 function KnockoutBracket({ knockout, groups }) {
+  // Pamięć potwierdzonych slotów — utrzymuje "zielony" status między odświeżeniami
+  const confirmedRef = useRef({})
+
   if (!groups || Object.keys(groups).length === 0) {
     return (
       <p className="text-center text-gray-500 py-12 text-sm">
@@ -408,6 +416,7 @@ function KnockoutBracket({ knockout, groups }) {
     )
   }
 
+  const store = confirmedRef.current
   const proj = buildProjection(groups)
   const apiByStage = {
     LAST_32: knockout['LAST_32'] || [],
@@ -421,13 +430,13 @@ function KnockoutBracket({ knockout, groups }) {
   const rounds = BRACKET_ROUNDS.map(r => {
     const aligned = alignApi(apiByStage[r.key], r.positions)
     const cards = r.positions.map((pos, i) =>
-      buildCard(aligned[i], pos.home, pos.away, pos, proj)
+      buildCard(aligned[i], pos, proj, store)
     )
     return { ...r, cards }
   })
 
   const thirdApi = [...(knockout['THIRD_PLACE'] || []), ...(knockout['THIRD_PLACE_FINAL'] || [])]
-  const thirdCard = buildCard(thirdApi[0], null, null, THIRD_PLACE, proj)
+  const thirdCard = buildCard(thirdApi[0], THIRD_PLACE, proj, store)
 
   const firstCount = rounds[0].cards.length
   const totalH = firstCount * SLOT - 4
