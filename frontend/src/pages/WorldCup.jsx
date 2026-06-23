@@ -6,6 +6,7 @@ import api from '../api/client'
 import { myPredictions } from '../api/predictions'
 import { useAuth } from '../context/AuthContext'
 import PageLoader from '../components/PageLoader'
+import { R32, R16, QF, SF, FINAL, THIRD_PLACE, THIRD_PLACE_MAP, THIRD_WINNERS } from '../data/wc2026Bracket'
 
 function MatchRow({ m, prediction }) {
   const kickoff = new Date(m.kickoff + 'Z')
@@ -222,15 +223,138 @@ const CARD_W = 148
 const ROUND_GAP = 20
 const BASE_H = 76  // card height: 26 home + 1 divider + 26 away + 1 divider + 22 date
 const SLOT = BASE_H + 4  // vertical space per R1 match (card + gap)
-const BRACKET_MAIN = ['LAST_32', 'LAST_16', 'ROUND_OF_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL']
 
 function bracketTop(roundIdx, matchIdx) {
   const span = 1 << roundIdx  // 2^roundIdx
   return SLOT * (matchIdx * span + (span - 1) / 2)
 }
 
-function BracketCard({ match }) {
-  if (!match) {
+// Sortowanie pomocnicze dla rankingu drużyn (pkt → różnica bramek → bramki)
+function cmpTeam(a, b) {
+  const pa = a.W * 3 + a.D
+  const pb = b.W * 3 + b.D
+  if (pb !== pa) return pb - pa
+  const gda = a.GF - a.GA
+  const gdb = b.GF - b.GA
+  if (gdb !== gda) return gdb - gda
+  return b.GF - a.GF
+}
+
+// Projekcja: na podstawie aktualnych tabel grup wylicza, kto powinien trafić
+// do którego slotu fazy pucharowej (1. i 2. miejsca + 8 najlepszych z 3. miejsc).
+function buildProjection(groups) {
+  const standings = {}
+  for (const [name, matches] of Object.entries(groups)) {
+    standings[name] = computeStandings(matches)
+  }
+  const letters = Object.keys(standings)
+
+  // Ranking 3. miejsc — 8 najlepszych awansuje
+  const thirds = letters
+    .map(l => ({ l, team: standings[l]?.[2] }))
+    .filter(x => x.team)
+    .sort((a, b) => cmpTeam(a.team, b.team))
+  const top8 = thirds.slice(0, 8).map(x => x.l).sort()
+  const key = top8.join('')
+  const assign = THIRD_PLACE_MAP[key]  // 8 znaków w kolejności THIRD_WINNERS
+  const thirdForWinner = {}
+  if (assign) {
+    THIRD_WINNERS.forEach((w, i) => { thirdForWinner[w] = assign[i] })
+  }
+
+  return {
+    winner: l => standings[l]?.[0],
+    runner: l => standings[l]?.[1],
+    thirdOf: l => standings[l]?.[2],
+    thirdForWinner,
+  }
+}
+
+// Slot: 'WX' = zwycięzca grupy X, 'RX' = wicelider grupy X,
+// 'TX' = 3. miejsce przypisane do zwycięzcy grupy X
+function resolveSlot(code, proj) {
+  if (!code) return null
+  const kind = code[0]
+  const g = code[1]
+  if (kind === 'W') return proj.winner(g)
+  if (kind === 'R') return proj.runner(g)
+  if (kind === 'T') {
+    const tg = proj.thirdForWinner[g]
+    return tg ? proj.thirdOf(tg) : null
+  }
+  return null
+}
+
+// Dopasowanie meczów z API do pozycji w drabince po czasie rozpoczęcia (najbliższy).
+function alignApi(apiList, positions) {
+  const used = new Set()
+  return positions.map(pos => {
+    const target = new Date(pos.dt).getTime()
+    let best = null, bestD = Infinity, bestI = -1
+    apiList.forEach((m, i) => {
+      if (used.has(i)) return
+      const t = new Date(m.kickoff + 'Z').getTime()
+      const d = Math.abs(t - target)
+      if (d < bestD) { bestD = d; best = m; bestI = i }
+    })
+    if (best && bestD < 12 * 3600 * 1000) { used.add(bestI); return best }
+    return null
+  })
+}
+
+function teamFromApi(name, logo) {
+  return name && name !== 'TBD' ? { name, logo, status: 'confirmed' } : null
+}
+
+function projTeam(slotCode, proj) {
+  const t = resolveSlot(slotCode, proj)
+  return t ? { name: t.name, logo: t.logo, status: 'projected' } : { name: null, logo: null, status: 'tbd' }
+}
+
+// Buduje znormalizowaną kartę: dane drużyn (z API gdy potwierdzone, inaczej z projekcji)
+// + wynik/status z meczu API jeśli istnieje.
+function buildCard(api, homeSlot, awaySlot, pos, proj) {
+  const home = teamFromApi(api?.home_team, api?.home_team_logo) || projTeam(homeSlot, proj)
+  const away = teamFromApi(api?.away_team, api?.away_team_logo) || projTeam(awaySlot, proj)
+  const isLive = api?.status === 'live'
+  const isFinished = api?.status === 'finished'
+  const kickoff = api ? new Date(api.kickoff + 'Z') : (pos.dt ? new Date(pos.dt) : null)
+  return {
+    home, away, isLive, isFinished, kickoff,
+    homeScore: api?.home_score ?? null,
+    awayScore: api?.away_score ?? null,
+  }
+}
+
+const GLOW = {
+  confirmed: 'inset 0 0 0 1px rgba(34,197,94,.55), inset 0 0 9px rgba(34,197,94,.28)',
+  projected: 'inset 0 0 0 1px rgba(234,179,8,.55), inset 0 0 9px rgba(234,179,8,.24)',
+  tbd: 'none',
+}
+
+function TeamLine({ team, score, isPlayed, wins }) {
+  const tbd = team.status === 'tbd' || !team.name
+  return (
+    <div
+      className={`flex items-center gap-1 px-2 ${wins ? 'bg-white/5' : ''}`}
+      style={{ height: 26, boxShadow: GLOW[team.status] }}
+    >
+      {!tbd && team.logo
+        ? <img src={team.logo} className="w-3.5 h-3.5 object-contain shrink-0" alt="" />
+        : <div className="w-3.5 shrink-0" />
+      }
+      <span className={`text-xs flex-1 truncate min-w-0 ${tbd ? 'text-gray-600 italic' : wins ? 'text-white font-bold' : 'text-gray-300'}`}>
+        {team.name || 'TBD'}
+      </span>
+      {isPlayed && score != null && (
+        <span className={`text-xs font-bold ml-1 shrink-0 ${wins ? 'text-white' : 'text-gray-500'}`}>{score}</span>
+      )}
+    </div>
+  )
+}
+
+function BracketCard({ card }) {
+  if (!card) {
     return (
       <div className="rounded-lg border border-gray-700/30 bg-gray-800/20 flex flex-col justify-around items-center" style={{ height: BASE_H }}>
         <div className="h-px w-10 bg-gray-700/50 rounded" />
@@ -239,52 +363,26 @@ function BracketCard({ match }) {
     )
   }
 
-  const isLive = match.status === 'live'
-  const isPlayed = match.status === 'finished' || isLive
-  const hs = match.home_score
-  const as_ = match.away_score
+  const isPlayed = card.isFinished || card.isLive
+  const hs = card.homeScore
+  const as_ = card.awayScore
   const homeWins = isPlayed && hs != null && as_ != null && hs > as_
   const awayWins = isPlayed && hs != null && as_ != null && as_ > hs
-  const homeTbd = !match.home_team || match.home_team === 'TBD'
-  const awayTbd = !match.away_team || match.away_team === 'TBD'
-  const dateStr = formatInTimeZone(new Date(match.kickoff + 'Z'), 'Europe/Warsaw', 'd MMM · HH:mm', { locale: pl })
+  const dateStr = card.kickoff
+    ? formatInTimeZone(card.kickoff, 'Europe/Warsaw', 'd MMM · HH:mm', { locale: pl })
+    : ''
 
   return (
     <div
-      className={`rounded-lg border overflow-hidden bg-gray-800 ${isLive ? 'border-red-500/60' : 'border-gray-700'}`}
+      className={`rounded-lg border overflow-hidden bg-gray-800 ${card.isLive ? 'border-red-500/60' : 'border-gray-700'}`}
       style={{ height: BASE_H }}
     >
-      {/* Home team */}
-      <div className={`flex items-center gap-1 px-2 ${homeWins ? 'bg-white/5' : ''}`} style={{ height: 26 }}>
-        {!homeTbd && match.home_team_logo
-          ? <img src={match.home_team_logo} className="w-3.5 h-3.5 object-contain shrink-0" alt="" />
-          : <div className="w-3.5 shrink-0" />
-        }
-        <span className={`text-xs flex-1 truncate min-w-0 ${homeTbd ? 'text-gray-600 italic' : homeWins ? 'text-white font-bold' : 'text-gray-300'}`}>
-          {match.home_team || 'TBD'}
-        </span>
-        {isPlayed && hs != null && (
-          <span className={`text-xs font-bold ml-1 shrink-0 ${homeWins ? 'text-white' : 'text-gray-500'}`}>{hs}</span>
-        )}
-      </div>
-      <div className={`h-px ${isLive ? 'bg-red-500/30' : 'bg-gray-700/40'}`} />
-      {/* Away team */}
-      <div className={`flex items-center gap-1 px-2 ${awayWins ? 'bg-white/5' : ''}`} style={{ height: 26 }}>
-        {!awayTbd && match.away_team_logo
-          ? <img src={match.away_team_logo} className="w-3.5 h-3.5 object-contain shrink-0" alt="" />
-          : <div className="w-3.5 shrink-0" />
-        }
-        <span className={`text-xs flex-1 truncate min-w-0 ${awayTbd ? 'text-gray-600 italic' : awayWins ? 'text-white font-bold' : 'text-gray-300'}`}>
-          {match.away_team || 'TBD'}
-        </span>
-        {isPlayed && as_ != null && (
-          <span className={`text-xs font-bold ml-1 shrink-0 ${awayWins ? 'text-white' : 'text-gray-500'}`}>{as_}</span>
-        )}
-      </div>
-      <div className={`h-px ${isLive ? 'bg-red-500/30' : 'bg-gray-700/40'}`} />
-      {/* Date / LIVE */}
+      <TeamLine team={card.home} score={hs} isPlayed={isPlayed} wins={homeWins} />
+      <div className={`h-px ${card.isLive ? 'bg-red-500/30' : 'bg-gray-700/40'}`} />
+      <TeamLine team={card.away} score={as_} isPlayed={isPlayed} wins={awayWins} />
+      <div className={`h-px ${card.isLive ? 'bg-red-500/30' : 'bg-gray-700/40'}`} />
       <div className="flex items-center justify-center" style={{ height: 22 }}>
-        {isLive
+        {card.isLive
           ? <span className="text-xs text-red-400 font-bold animate-pulse">● LIVE</span>
           : <span className="text-xs text-gray-600">{dateStr}</span>
         }
@@ -293,77 +391,94 @@ function BracketCard({ match }) {
   )
 }
 
-function KnockoutBracket({ knockout }) {
-  const stages = BRACKET_MAIN
-    .filter(s => knockout[s]?.length > 0)
-    .map(s => ({
-      key: s,
-      label: STAGE_LABELS[s] || s,
-      matches: [...knockout[s]].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff)),
-    }))
+const BRACKET_ROUNDS = [
+  { key: 'LAST_32', label: '1/16 finału', positions: R32 },
+  { key: 'LAST_16', label: '1/8 finału', positions: R16 },
+  { key: 'QUARTER_FINALS', label: 'Ćwierćfinały', positions: QF },
+  { key: 'SEMI_FINALS', label: 'Półfinały', positions: SF },
+  { key: 'FINAL', label: 'Finał', positions: FINAL },
+]
 
-  const thirdPlace = [
-    ...(knockout['THIRD_PLACE'] || []),
-    ...(knockout['THIRD_PLACE_FINAL'] || []),
-  ].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
-
-  if (stages.length === 0) {
+function KnockoutBracket({ knockout, groups }) {
+  if (!groups || Object.keys(groups).length === 0) {
     return (
       <p className="text-center text-gray-500 py-12 text-sm">
-        Brak danych fazy pucharowej — mecze zostaną dodane po zakończeniu fazy grupowej.
+        Brak danych grup — drabinka pojawi się po dodaniu meczów fazy grupowej.
       </p>
     )
   }
 
-  const firstCount = stages[0].matches.length
+  const proj = buildProjection(groups)
+  const apiByStage = {
+    LAST_32: knockout['LAST_32'] || [],
+    LAST_16: knockout['LAST_16'] || knockout['ROUND_OF_16'] || [],
+    QUARTER_FINALS: knockout['QUARTER_FINALS'] || [],
+    SEMI_FINALS: knockout['SEMI_FINALS'] || [],
+    FINAL: knockout['FINAL'] || [],
+  }
+
+  // Karty dla każdej rundy w kolejności drabinki
+  const rounds = BRACKET_ROUNDS.map(r => {
+    const aligned = alignApi(apiByStage[r.key], r.positions)
+    const cards = r.positions.map((pos, i) =>
+      buildCard(aligned[i], pos.home, pos.away, pos, proj)
+    )
+    return { ...r, cards }
+  })
+
+  const thirdApi = [...(knockout['THIRD_PLACE'] || []), ...(knockout['THIRD_PLACE_FINAL'] || [])]
+  const thirdCard = buildCard(thirdApi[0], null, null, THIRD_PLACE, proj)
+
+  const firstCount = rounds[0].cards.length
   const totalH = firstCount * SLOT - 4
   const HEADER = 28
-  const totalW = stages.length * (CARD_W + ROUND_GAP) - ROUND_GAP
+  const totalW = rounds.length * (CARD_W + ROUND_GAP) - ROUND_GAP
   const CONN = '#374151'
 
   // Mecz o 3. miejsce — pod finałem, w ostatniej kolumnie, bez kresek łączących
-  const finalRi = stages.length - 1
+  const finalRi = rounds.length - 1
   const finalLeft = finalRi * (CARD_W + ROUND_GAP)
   const finalBottom = HEADER + bracketTop(finalRi, 0) + BASE_H
   const thirdLabelTop = finalBottom + 28
   const thirdCardTop = thirdLabelTop + 20
-  const containerH = thirdPlace.length > 0
-    ? Math.max(totalH + HEADER, thirdCardTop + BASE_H)
-    : totalH + HEADER
+  const containerH = Math.max(totalH + HEADER, thirdCardTop + BASE_H)
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ boxShadow: '0 0 5px rgba(34,197,94,.7)', background: 'rgba(34,197,94,.7)' }} />
+          <span>Potwierdzone</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ boxShadow: '0 0 5px rgba(234,179,8,.7)', background: 'rgba(234,179,8,.7)' }} />
+          <span>Prognoza wg tabel</span>
+        </div>
+      </div>
+
       <div className="overflow-x-auto scrollbar-thin">
         <div style={{ position: 'relative', height: containerH, width: totalW, minWidth: totalW }}>
-          {stages.map((stage, ri) => {
+          {rounds.map((round, ri) => {
             const colLeft = ri * (CARD_W + ROUND_GAP)
-            const expectedCount = Math.ceil(firstCount / (1 << ri))
-            // Pad with nulls so alignment stays correct even if API is missing matches
-            const matches = [...stage.matches]
-            while (matches.length < expectedCount) matches.push(null)
-
             return (
-              <Fragment key={stage.key}>
-                {/* Column label */}
+              <Fragment key={round.key}>
                 <div
                   className="text-xs font-bold text-brand-400 text-center truncate"
                   style={{ position: 'absolute', left: colLeft, top: 0, width: CARD_W, lineHeight: `${HEADER - 6}px` }}
                 >
-                  {stage.label}
+                  {round.label}
                 </div>
 
-                {/* Match cards */}
-                {matches.map((m, mi) => (
+                {round.cards.map((card, mi) => (
                   <div
                     key={mi}
                     style={{ position: 'absolute', left: colLeft, top: HEADER + bracketTop(ri, mi), width: CARD_W }}
                   >
-                    <BracketCard match={m} />
+                    <BracketCard card={card} />
                   </div>
                 ))}
 
-                {/* Connectors to the next round */}
-                {ri < stages.length - 1 && matches.map((_, mi) => {
+                {ri < rounds.length - 1 && round.cards.map((_, mi) => {
                   if (mi % 2 !== 0) return null
                   const c1 = HEADER + bracketTop(ri, mi) + BASE_H / 2
                   const c2 = HEADER + bracketTop(ri, mi + 1) + BASE_H / 2
@@ -371,7 +486,6 @@ function KnockoutBracket({ knockout }) {
                   const x0 = colLeft + CARD_W
                   const xMid = x0 + ROUND_GAP / 2
                   const x1 = x0 + ROUND_GAP
-
                   return (
                     <Fragment key={`c${mi}`}>
                       <div style={{ position: 'absolute', left: x0, top: c1 - 0.5, width: xMid - x0, height: 1, background: CONN }} />
@@ -386,22 +500,19 @@ function KnockoutBracket({ knockout }) {
           })}
 
           {/* Mecz o 3. miejsce — pod finałem, bez kresek łączących */}
-          {thirdPlace.length > 0 && (
-            <Fragment>
-              <div
-                className="text-xs font-bold text-brand-400 text-center truncate"
-                style={{ position: 'absolute', left: finalLeft, top: thirdLabelTop, width: CARD_W, lineHeight: '14px' }}
-              >
-                Mecz o 3. miejsce
-              </div>
-              <div style={{ position: 'absolute', left: finalLeft, top: thirdCardTop, width: CARD_W }}>
-                <BracketCard match={thirdPlace[0]} />
-              </div>
-            </Fragment>
-          )}
+          <Fragment>
+            <div
+              className="text-xs font-bold text-brand-400 text-center truncate"
+              style={{ position: 'absolute', left: finalLeft, top: thirdLabelTop, width: CARD_W, lineHeight: '14px' }}
+            >
+              Mecz o 3. miejsce
+            </div>
+            <div style={{ position: 'absolute', left: finalLeft, top: thirdCardTop, width: CARD_W }}>
+              <BracketCard card={thirdCard} />
+            </div>
+          </Fragment>
         </div>
       </div>
-
     </div>
   )
 }
@@ -521,7 +632,7 @@ export default function WorldCup() {
         )}
 
         {tab === 'bracket' && (
-          <KnockoutBracket knockout={knockout} />
+          <KnockoutBracket knockout={knockout} groups={groups} />
         )}
 
       </div>
