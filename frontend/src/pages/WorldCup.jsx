@@ -240,10 +240,17 @@ function cmpTeam(a, b) {
   return b.GF - a.GF
 }
 
-// Pewność pozycji w grupie liczona TYLKO z rozegranych meczów: drużyna ma
-// zagwarantowane miejsce, jeśli żaden wynik pozostałych meczów już tego nie zmieni.
-// Zwraca nazwy drużyn pewnych 1. i 2. miejsca (lub null).
+// Pewność pozycji w grupie — zwraca nazwy drużyn pewnych 1. i 2. miejsca (lub null).
+// Gdy nie ma już żadnych aktywnych meczów (scheduled/live), tabela jest ostateczna
+// i korzystamy bezpośrednio z computeStandings (uwzględnia też różnicę bramek).
+// Dla grup w toku używamy logiki dominacji punktowej.
 function computeCertainty(matches) {
+  const activeStatuses = new Set(['scheduled', 'live'])
+  if (matches.length > 0 && !matches.some(m => activeStatuses.has(m.status))) {
+    const s = computeStandings(matches)
+    return { winner: s[0]?.name ?? null, runner: s[1]?.name ?? null }
+  }
+
   const teams = {}
   const ensure = n => { if (!teams[n]) teams[n] = { name: n, pts: 0, rem: 0 } }
   for (const m of matches) {
@@ -253,8 +260,8 @@ function computeCertainty(matches) {
       if (hs > as_) teams[m.home_team].pts += 3
       else if (hs < as_) teams[m.away_team].pts += 3
       else { teams[m.home_team].pts += 1; teams[m.away_team].pts += 1 }
-    } else {
-      // nierozegrany (zaplanowany lub trwający) — punkty wciąż możliwe dla obu
+    } else if (m.status === 'scheduled' || m.status === 'live') {
+      // tylko aktywne mecze generują jeszcze potencjalne punkty
       teams[m.home_team].rem += 1
       teams[m.away_team].rem += 1
     }
