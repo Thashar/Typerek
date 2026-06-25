@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from core.database import get_db
 from models.settings import GameSettings
-from routers.deps import get_admin_user
+from routers.deps import get_admin_user, get_current_user
 from models.user import User
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -17,7 +17,7 @@ class SettingsUpdate(BaseModel):
 
 
 @router.get("")
-def get_settings(db: Session = Depends(get_db)):
+def get_settings(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     s = GameSettings.get(db)
     return {
         "points_exact": s.points_exact,
