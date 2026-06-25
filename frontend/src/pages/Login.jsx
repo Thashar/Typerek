@@ -100,6 +100,11 @@ export default function Login() {
             <Link to="/register" className="text-brand-500 hover:underline">Zarejestruj się</Link>
           </p>
         </form>
+        <p className="text-center text-gray-600 text-xs mt-4">
+          <Link to="/privacy" className="hover:text-gray-400">Polityka prywatności</Link>
+          {' · '}
+          <Link to="/regulamin" className="hover:text-gray-400">Regulamin</Link>
+        </p>
       </div>
     </div>
   )

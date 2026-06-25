@@ -56,6 +56,7 @@ const ResendVerification = lazyWithRetry(() => import('./pages/ResendVerificatio
 const GoogleCallback = lazyWithRetry(() => import('./pages/GoogleCallback'))
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'))
 const Privacy = lazyWithRetry(() => import('./pages/Privacy'))
+const Terms = lazyWithRetry(() => import('./pages/Terms'))
 
 function AdminRoute({ children }) {
   const { user } = useAuth()
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/resend-verification" element={<ResendVerification />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/regulamin" element={<Terms />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Matches />} />
             <Route path="/worldcup" element={<WorldCup />} />
