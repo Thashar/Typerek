@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, Link, Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { getLive } from '../api/matches'
@@ -206,7 +206,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <nav className="shrink-0 bg-gray-900 border-t border-gray-800 z-40" aria-label="Nawigacja główna">
+      <nav className="shrink-0 bg-gray-900 border-t border-gray-800 z-40 pb-0" aria-label="Nawigacja główna">
         <div className="max-w-2xl mx-auto flex">
           {nav.map(({ to, label, chatBadge }) => (
             <NavLink
@@ -230,6 +230,13 @@ export default function Layout() {
           ))}
         </div>
       </nav>
+      <div className="shrink-0 bg-gray-900 pb-1 text-center">
+        <div className="flex justify-center gap-3 text-[10px] text-gray-700">
+          <Link to="/privacy" className="hover:text-gray-500">Polityka prywatności</Link>
+          <span>·</span>
+          <Link to="/regulamin" className="hover:text-gray-500">Regulamin</Link>
+        </div>
+      </div>
     </div>
   )
 }
