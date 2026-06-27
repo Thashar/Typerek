@@ -97,10 +97,10 @@ function StatCard({ label, value }) {
   )
 }
 
-function Section({ title, children, defaultOpen = false }) {
+function Section({ title, children, defaultOpen = false, noOverflowHidden = false }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="bg-gray-800 rounded-xl overflow-hidden">
+    <div className={`bg-gray-800 rounded-xl ${noOverflowHidden ? '' : 'overflow-hidden'}`}>
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-750 transition"
@@ -301,7 +301,7 @@ function MatchScoreCorrector({ queryClient }) {
         />
         {searching && <span className="absolute right-3 top-2 text-xs text-gray-400">...</span>}
         {results.length > 0 && (
-          <div className="absolute z-10 mt-1 w-full bg-gray-700 rounded-lg shadow-xl border border-gray-600 overflow-hidden">
+          <div className="absolute z-50 mt-1 w-full bg-gray-700 rounded-lg shadow-xl border border-gray-600 overflow-hidden">
             {results.map(m => (
               <button
                 key={m.id}
@@ -553,7 +553,7 @@ export default function Admin() {
       </Section>
 
       {/* Korekta wyniku */}
-      <Section title="✏️ Korekta wyniku meczu">
+      <Section title="✏️ Korekta wyniku meczu" noOverflowHidden>
         <MatchScoreCorrector queryClient={queryClient} />
       </Section>
 
