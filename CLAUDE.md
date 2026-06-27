@@ -18,6 +18,17 @@ EOF
 git push origin main
 ```
 
+## Wersjonowanie
+
+Wersja aplikacji jest wyświetlana w headerze (`frontend/src/components/Layout.jsx`) jako `v1.1.1`.
+
+**Przy każdej zmianie kodu aktualizuj numer wersji** według schematu `MAJOR.MINOR.PATCH`:
+- `PATCH` (+0.0.1) — drobna poprawka, bugfix, zmiana kosmetyczna
+- `MINOR` (+0.1.0) — nowa funkcjonalność, większa zmiana UI
+- `MAJOR` (+1.0.0) — przełomowa zmiana architektury lub duży rebrand
+
+Zmiana jest w pliku `frontend/src/components/Layout.jsx`, w linii z `v1.1.1`.
+
 ## Ogólne zasady
 
 - Nie tworzymy zbędnych plików dokumentacji ani komentarzy w kodzie.
