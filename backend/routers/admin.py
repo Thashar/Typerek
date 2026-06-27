@@ -22,6 +22,10 @@ class LeagueCodeRequest(BaseModel):
 class ChangeLeagueRequest(BaseModel):
     league_id: int | None = None
 
+class MatchScoreUpdate(BaseModel):
+    home_score: int
+    away_score: int
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
@@ -191,6 +195,69 @@ def recalculate_all_points(
     sync._calculate_points_for_finished(db)
     db.commit()
     return {"detail": "ok"}
+
+
+@router.get("/matches")
+def search_matches(
+    q: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    matches = (
+        db.query(Match)
+        .filter(
+            (Match.home_team.ilike(f"%{q}%")) | (Match.away_team.ilike(f"%{q}%"))
+        )
+        .order_by(Match.kickoff.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        {
+            "id": m.id,
+            "home_team": m.home_team,
+            "away_team": m.away_team,
+            "home_score": m.home_score,
+            "away_score": m.away_score,
+            "status": m.status,
+            "kickoff": m.kickoff.isoformat(),
+        }
+        for m in matches
+    ]
+
+
+@router.put("/matches/{match_id}/score")
+def correct_match_score(
+    match_id: int,
+    body: MatchScoreUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Mecz nie istnieje")
+
+    match.home_score = body.home_score
+    match.away_score = body.away_score
+
+    db.query(Prediction).filter(Prediction.match_id == match_id).update({Prediction.points: None})
+    db.flush()
+
+    if match.status == MatchStatus.FINISHED:
+        from models.settings import GameSettings
+        points_exact, points_outcome = GameSettings.get_points(db)
+        for pred in db.query(Prediction).filter(Prediction.match_id == match_id).all():
+            pred.points = pred.calculate_points(body.home_score, body.away_score, points_exact, points_outcome)
+
+    db.commit()
+    return {
+        "id": match.id,
+        "home_team": match.home_team,
+        "away_team": match.away_team,
+        "home_score": match.home_score,
+        "away_score": match.away_score,
+        "status": match.status,
+    }
 
 
 @router.post("/reset-all-points")

@@ -218,6 +218,130 @@ function UserRow({ u, currentUserId, leagues, onChanged }) {
   )
 }
 
+function MatchScoreCorrector({ queryClient }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [homeScore, setHomeScore] = useState('')
+  const [awayScore, setAwayScore] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [err, setErr] = useState('')
+  const [searching, setSearching] = useState(false)
+
+  const search = async (q) => {
+    if (!q.trim()) { setResults([]); return }
+    setSearching(true)
+    try {
+      const r = await api.get('/admin/matches', { params: { q } })
+      setResults(r.data)
+    } catch {
+      setResults([])
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  useEffect(() => {
+    const t = setTimeout(() => search(query), 400)
+    return () => clearTimeout(t)
+  }, [query])
+
+  const selectMatch = (m) => {
+    setSelected(m)
+    setHomeScore(m.home_score ?? '')
+    setAwayScore(m.away_score ?? '')
+    setResults([])
+    setQuery(`${m.home_team} – ${m.away_team}`)
+    setMsg(null)
+    setErr('')
+  }
+
+  const correctMut = useMutation({
+    mutationFn: () => api.put(`/admin/matches/${selected.id}/score`, {
+      home_score: parseInt(homeScore),
+      away_score: parseInt(awayScore),
+    }).then(r => r.data),
+    onSuccess: (data) => {
+      setMsg(`Wynik zaktualizowany: ${data.home_team} ${data.home_score}–${data.away_score} ${data.away_team}`)
+      setSelected(data)
+      queryClient.invalidateQueries({ queryKey: ['ranking'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: (e) => setErr(e.response?.data?.detail || 'Błąd'),
+  })
+
+  const canSubmit = selected && homeScore !== '' && awayScore !== '' && !correctMut.isPending
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-400">Wyszukaj mecz po nazwie drużyny i wprowadź poprawiony wynik. Punkty zostaną automatycznie przeliczone.</p>
+      <div className="relative">
+        <input
+          className="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          placeholder="Szukaj drużyny (np. Egypt, Iran…)"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setSelected(null); setMsg(null) }}
+        />
+        {searching && <span className="absolute right-3 top-2 text-xs text-gray-400">...</span>}
+        {results.length > 0 && (
+          <div className="absolute z-10 mt-1 w-full bg-gray-700 rounded-lg shadow-xl border border-gray-600 overflow-hidden">
+            {results.map(m => (
+              <button
+                key={m.id}
+                onClick={() => selectMatch(m)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-600 transition border-b border-gray-600 last:border-0"
+              >
+                <span className="text-white">{m.home_team} – {m.away_team}</span>
+                <span className="ml-2 text-gray-400 text-xs">
+                  {m.home_score != null ? `${m.home_score}:${m.away_score}` : '–'} · {m.status} · {m.kickoff.slice(0, 10)}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {selected && (
+        <div className="bg-gray-700 rounded-lg px-3 py-3 space-y-3">
+          <p className="text-xs text-gray-400">
+            Aktualny wynik: <span className="text-white font-bold">{selected.home_team} {selected.home_score ?? '?'}:{selected.away_score ?? '?'} {selected.away_team}</span>
+            <span className="ml-2 text-gray-500">({selected.status})</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">{selected.home_team}</label>
+              <input
+                type="number" min="0" max="99"
+                value={homeScore}
+                onChange={e => setHomeScore(e.target.value)}
+                className="w-16 text-center bg-gray-600 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <span className="text-gray-400 font-bold mt-4">:</span>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">{selected.away_team}</label>
+              <input
+                type="number" min="0" max="99"
+                value={awayScore}
+                onChange={e => setAwayScore(e.target.value)}
+                className="w-16 text-center bg-gray-600 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <button
+              onClick={() => { setMsg(null); setErr(''); correctMut.mutate() }}
+              disabled={!canSubmit}
+              className="mt-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-lg transition text-sm"
+            >
+              {correctMut.isPending ? 'Zapisuję...' : 'Zapisz korektę'}
+            </button>
+          </div>
+          {msg && <p className="text-xs text-green-400">{msg}</p>}
+          {err && <p className="text-xs text-red-400">{err}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Admin() {
   usePageTitle('Panel admina')
   const { user } = useAuth()
@@ -401,6 +525,11 @@ export default function Admin() {
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${worldCupOnly ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
+      </Section>
+
+      {/* Korekta wyniku */}
+      <Section title="✏️ Korekta wyniku meczu">
+        <MatchScoreCorrector queryClient={queryClient} />
       </Section>
 
       {/* Synchronizacja */}
