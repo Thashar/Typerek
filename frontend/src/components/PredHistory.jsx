@@ -43,6 +43,7 @@ export function PredRow({ p }) {
             className={`text-center text-sm shrink-0 ${isScheduled ? 'cursor-pointer hover:text-brand-400 transition' : 'cursor-default'}`}
             title={isScheduled ? 'Kliknij, aby zmienić typ' : undefined}
           >
+            <span className="block text-[10px] text-gray-500 mb-0.5">Twój typ:</span>
             <span className="font-bold">{p.predicted_home}–{p.predicted_away}</span>
             {(p.match.status === 'finished' || isLive) && (
               <span className={`block text-xs ${isLive ? 'text-red-500 font-semibold animate-pulse [filter:drop-shadow(0_0_6px_rgba(239,68,68,0.8))]' : 'text-gray-500'}`}>
