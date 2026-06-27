@@ -260,6 +260,49 @@ def correct_match_score(
     }
 
 
+@router.post("/matches/{match_id}/sync-from-api")
+async def sync_match_from_api(
+    match_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_admin_user),
+):
+    """Pobiera aktualny wynik meczu bezpośrednio z football-data.org po api_id."""
+    from services import football_api, sync as sync_svc
+
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Mecz nie istnieje")
+
+    fixture = await football_api.fetch_match_by_id(match.api_id)
+    if not fixture:
+        raise HTTPException(status_code=502, detail="Nie udało się pobrać danych z API")
+
+    score_before = (match.home_score, match.away_score)
+    sync_svc._upsert_fixture(db, fixture)
+    db.flush()
+
+    db.query(Prediction).filter(Prediction.match_id == match_id).update({Prediction.points: None})
+    db.flush()
+
+    if match.status == MatchStatus.FINISHED:
+        from models.settings import GameSettings
+        points_exact, points_outcome = GameSettings.get_points(db)
+        for pred in db.query(Prediction).filter(Prediction.match_id == match_id).all():
+            pred.points = pred.calculate_points(match.home_score, match.away_score, points_exact, points_outcome)
+
+    db.commit()
+    return {
+        "id": match.id,
+        "home_team": match.home_team,
+        "away_team": match.away_team,
+        "home_score": match.home_score,
+        "away_score": match.away_score,
+        "status": match.status,
+        "score_before": {"home": score_before[0], "away": score_before[1]},
+        "changed": (match.home_score, match.away_score) != score_before,
+    }
+
+
 @router.post("/reset-all-points")
 def reset_all_points(
     db: Session = Depends(get_db),

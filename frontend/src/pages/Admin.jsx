@@ -270,6 +270,23 @@ function MatchScoreCorrector({ queryClient }) {
     onError: (e) => setErr(e.response?.data?.detail || 'Błąd'),
   })
 
+  const syncFromApiMut = useMutation({
+    mutationFn: () => api.post(`/admin/matches/${selected.id}/sync-from-api`).then(r => r.data),
+    onSuccess: (data) => {
+      setSelected(data)
+      setHomeScore(data.home_score ?? '')
+      setAwayScore(data.away_score ?? '')
+      if (data.changed) {
+        setMsg(`Pobrano z API — wynik zmieniony na ${data.home_score}:${data.away_score}. Punkty przeliczone.`)
+      } else {
+        setMsg(`Pobrano z API — wynik bez zmian (${data.home_score}:${data.away_score})`)
+      }
+      queryClient.invalidateQueries({ queryKey: ['ranking'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: (e) => setErr(e.response?.data?.detail || 'Błąd pobierania z API'),
+  })
+
   const canSubmit = selected && homeScore !== '' && awayScore !== '' && !correctMut.isPending
 
   return (
@@ -306,7 +323,7 @@ function MatchScoreCorrector({ queryClient }) {
             Aktualny wynik: <span className="text-white font-bold">{selected.home_team} {selected.home_score ?? '?'}:{selected.away_score ?? '?'} {selected.away_team}</span>
             <span className="ml-2 text-gray-500">({selected.status})</span>
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div>
               <label className="block text-xs text-gray-400 mb-1">{selected.home_team}</label>
               <input
@@ -332,6 +349,14 @@ function MatchScoreCorrector({ queryClient }) {
               className="mt-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-lg transition text-sm"
             >
               {correctMut.isPending ? 'Zapisuję...' : 'Zapisz korektę'}
+            </button>
+            <button
+              onClick={() => { setMsg(null); setErr(''); syncFromApiMut.mutate() }}
+              disabled={syncFromApiMut.isPending || correctMut.isPending}
+              className="mt-4 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-lg transition text-sm"
+              title="Pobierz aktualny wynik z football-data.org"
+            >
+              {syncFromApiMut.isPending ? 'Pobieranie...' : 'Pobierz z API'}
             </button>
           </div>
           {msg && <p className="text-xs text-green-400">{msg}</p>}
