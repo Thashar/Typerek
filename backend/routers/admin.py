@@ -260,6 +260,15 @@ def correct_match_score(
     }
 
 
+def _api_error_detail(e: Exception, endpoint: str) -> str:
+    import httpx
+    if isinstance(e, httpx.HTTPStatusError):
+        return f"{endpoint} → HTTP {e.response.status_code}"
+    if isinstance(e, httpx.TimeoutException):
+        return f"{endpoint} → przekroczono czas oczekiwania"
+    return f"{endpoint} → {type(e).__name__}: {e}"
+
+
 @router.post("/matches/{match_id}/sync-from-api")
 async def sync_match_from_api(
     match_id: int,
@@ -269,13 +278,37 @@ async def sync_match_from_api(
     """Pobiera aktualny wynik meczu bezpośrednio z football-data.org po api_id."""
     from services import football_api, sync as sync_svc
 
-    match = db.query(Match).filter(Match.id == match_id).first()
+    match = db.query(Match).options(joinedload(Match.league)).filter(Match.id == match_id).first()
     if not match:
         raise HTTPException(status_code=404, detail="Mecz nie istnieje")
 
-    fixture = await football_api.fetch_match_by_id(match.api_id)
+    api_id_to_code = {v["id"]: k for k, v in football_api.COMPETITIONS.items()}
+    comp_code = api_id_to_code.get(match.league.api_id) if match.league else None
+
+    fixture = None
+    errors = []
+    if comp_code:
+        # Preferowany sposob — endpoint /competitions/{code}/matches dziala tez dla
+        # starych, zakonczonych meczy (w odroznieniu od /matches/{id}, ktory bywa
+        # niedostepny w darmowym planie football-data.org).
+        try:
+            fixture = await football_api.fetch_fixture_by_id_on_date(
+                match.api_id, comp_code, match.kickoff.date().isoformat()
+            )
+        except Exception as e:
+            errors.append(_api_error_detail(e, f"/competitions/{comp_code}/matches"))
+
     if not fixture:
-        raise HTTPException(status_code=502, detail="Nie udało się pobrać danych z API")
+        try:
+            fixture = await football_api.fetch_match_by_id_raw(match.api_id)
+        except Exception as e:
+            errors.append(_api_error_detail(e, f"/matches/{match.api_id}"))
+
+    if not fixture:
+        detail = "Nie udało się pobrać danych z API"
+        if errors:
+            detail += ": " + "; ".join(errors)
+        raise HTTPException(status_code=502, detail=detail)
 
     score_before = (match.home_score, match.away_score)
     sync_svc._upsert_fixture(db, fixture)

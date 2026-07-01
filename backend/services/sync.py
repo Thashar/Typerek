@@ -59,29 +59,15 @@ async def sync_bulk_to_end_of_year(db: Session) -> int:
 
 
 async def update_live_and_recent(db: Session) -> int:
-    """Aktualizuje wyniki meczy live i zakonczonych w ostatnich 2h."""
+    """Aktualizuje wyniki meczy live, startujacych i niedawno zakonczonych (korekty wyniku)."""
     from sqlalchemy import or_, and_
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     window_start = now - timedelta(hours=3)
+    # Mecze zakonczone niedawno sprawdzamy ponownie — API potrafi skorygowac wynik
+    # (VAR, cofniety gol) po tym jak juz oznaczylismy mecz jako finished.
+    recheck_start = now - timedelta(hours=6)
 
-    has_active = db.query(Match).filter(
-        or_(
-            Match.status == MatchStatus.LIVE,
-            and_(
-                Match.kickoff <= now,
-                Match.kickoff >= window_start,
-                Match.status.notin_([MatchStatus.FINISHED, MatchStatus.CANCELLED, MatchStatus.POSTPONED]),
-            ),
-        )
-    ).limit(1).first()
-
-    if not has_active:
-        # Mimo braku aktywnych meczów przelicz punkty — np. po admin sync
-        _calculate_points_for_finished(db)
-        db.commit()
-        return 0
-
-    # Ustal kody ligowe na podstawie aktywnych meczów w bazie, nie hardkodowanych COMPETITION_CODES
+    # Mecze live lub takie ktore powinny wlasnie trwac
     active_matches = db.query(Match).filter(
         or_(
             Match.status == MatchStatus.LIVE,
@@ -92,19 +78,31 @@ async def update_live_and_recent(db: Session) -> int:
             ),
         )
     ).all()
-    api_id_to_code = {v["id"]: k for k, v in football_api.COMPETITIONS.items()}
-    league_ids = {m.league_id for m in active_matches}
-    leagues = db.query(League).filter(League.id.in_(league_ids)).all()
-    codes_to_query = list({api_id_to_code[l.api_id] for l in leagues if l.api_id in api_id_to_code})
-    if not codes_to_query:
-        codes_to_query = COMPETITION_CODES
-
-    fixtures = await football_api.fetch_live_fixtures(codes_to_query)
-
-    # Dla meczy LIVE w bazie — sprawdz czy zakonczyly sie (fetch po ID, zakres dat)
-    recent = db.query(Match).filter(
-        Match.status == MatchStatus.LIVE,
+    recently_finished = db.query(Match).filter(
+        Match.status == MatchStatus.FINISHED, Match.kickoff >= recheck_start
     ).all()
+
+    if not active_matches and not recently_finished:
+        # Mimo braku aktywnych meczów przelicz punkty — np. po admin sync
+        _calculate_points_for_finished(db)
+        db.commit()
+        return 0
+
+    api_id_to_code = {v["id"]: k for k, v in football_api.COMPETITIONS.items()}
+    fixtures = []
+
+    if active_matches:
+        # Ustal kody ligowe na podstawie aktywnych meczów w bazie, nie hardkodowanych COMPETITION_CODES
+        league_ids = {m.league_id for m in active_matches}
+        leagues = db.query(League).filter(League.id.in_(league_ids)).all()
+        codes_to_query = list({api_id_to_code[l.api_id] for l in leagues if l.api_id in api_id_to_code})
+        if not codes_to_query:
+            codes_to_query = COMPETITION_CODES
+        fixtures += await football_api.fetch_live_fixtures(codes_to_query)
+
+    # Dla meczy LIVE w bazie — sprawdz czy zakonczyly sie; dla niedawno zakonczonych —
+    # sprawdz czy wynik nie zostal skorygowany (fetch po ID, zakres dat)
+    recent = [m for m in active_matches if m.status == MatchStatus.LIVE] + recently_finished
     if recent:
         ids = [m.api_id for m in recent]
         r_league_ids = {m.league_id for m in recent}
@@ -182,12 +180,24 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.status = parsed_status
     # Nie nadpisuj realnego wyniku nullem — API potrafi chwilowo zwrocic mecz bez
     # goli (opoznienie/glitch), co wczesniej kasowalo wynik trwajacego meczu.
+    old_home, old_away = match.home_score, match.away_score
     new_home = goals.get("home")
     new_away = goals.get("away")
+    score_changed = False
     if new_home is not None:
+        if new_home != old_home:
+            score_changed = True
         match.home_score = new_home
     if new_away is not None:
+        if new_away != old_away:
+            score_changed = True
         match.away_score = new_away
+
+    # Wynik meczu juz zakonczonego zostal skorygowany (np. cofniety gol po VAR) —
+    # wyzeruj przeliczone punkty, zeby _calculate_points_for_finished policzyl je ponownie.
+    if current_status == MatchStatus.FINISHED and score_changed and match.id is not None:
+        db.query(Prediction).filter(Prediction.match_id == match.id).update({Prediction.points: None})
+
     match.stage = f.get("stage")
     match.match_group = f.get("group")
 

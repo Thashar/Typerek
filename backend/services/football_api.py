@@ -154,12 +154,28 @@ async def fetch_fixtures_by_ids(fixture_ids: list[int], comp_codes: list[str] | 
     return found
 
 
+async def fetch_fixture_by_id_on_date(fixture_id: int, comp_code: str, match_date: str) -> dict | None:
+    """Pobiera mecz po ID przez endpoint kompetycji+data. Dziala dla starych, zakonczonych
+    meczy, w odroznieniu od /matches/{id}, ktory bywa niedostepny w darmowym planie API.
+    Rzuca wyjatek przy bledzie HTTP (zamiast go polykac), zeby admin widzial realna przyczyne."""
+    data = await _get(f"/competitions/{comp_code}/matches", {"dateFrom": match_date, "dateTo": match_date})
+    for m in data.get("matches", []):
+        if m["id"] == fixture_id:
+            return _to_fixture(m, comp_code)
+    return None
+
+
 async def fetch_match_by_id(fixture_id: int) -> dict | None:
     """Pobiera pojedynczy mecz po ID — fallback gdy /competitions go nie zwraca."""
     try:
-        data = await _get(f"/matches/{fixture_id}")
+        return await fetch_match_by_id_raw(fixture_id)
     except Exception:
         return None
+
+
+async def fetch_match_by_id_raw(fixture_id: int) -> dict | None:
+    """Jak fetch_match_by_id, ale rzuca wyjatek przy bledzie HTTP zamiast go polykac."""
+    data = await _get(f"/matches/{fixture_id}")
     match = data.get("match") if isinstance(data, dict) else None
     if not match:
         return None
