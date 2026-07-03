@@ -30,10 +30,15 @@ def _headers() -> dict:
 
 
 def _status_short(raw: str, minute: int | None = None) -> str:
+    # Po 90. minucie (dogrywka/karne) mecz traktujemy jako zakonczony —
+    # liczy sie wynik po regulaminowym czasie gry.
     if raw == "IN_PLAY":
+        if minute is not None and minute > 90:
+            return "ET"
         return "2H" if (minute is not None and minute > 45) else "1H"
+    if raw == "PAUSED":
+        return "ET" if (minute is not None and minute >= 90) else "HT"
     return {
-        "PAUSED": "HT",
         "EXTRA_TIME": "ET",
         "PENALTY_SHOOTOUT": "P",
         "FINISHED": "FT", "AWARDED": "FT", "WALKOVER": "FT",
@@ -42,7 +47,7 @@ def _status_short(raw: str, minute: int | None = None) -> str:
     }.get(raw, "NS")
 
 
-def _score_90min(score: dict) -> tuple:
+def _score_90min(score: dict, raw_status: str = "", minute: int | None = None) -> tuple:
     """Zwraca wynik po 90 min (bez dogrywki i karnych).
     football-data.org w fullTime zwraca wynik skumulowany (wliczajac karne),
     wiec uzywamy regularTime gdy dostepne, lub odejmujemy penalties od fullTime.
@@ -54,6 +59,13 @@ def _score_90min(score: dict) -> tuple:
         return regular["home"], regular["away"]
     if pens.get("home") is not None and ft.get("home") is not None:
         return ft["home"] - pens["home"], ft["away"] - pens["away"]
+    # Dogrywka/karne w trakcie gry: regularTime pojawia sie dopiero po zakonczeniu
+    # meczu, a fullTime zawiera juz gole z dogrywki. Zwracamy None, zeby nie
+    # nadpisac wyniku po 90 min zapisanego w bazie (upsert ignoruje None).
+    if raw_status in ("EXTRA_TIME", "PENALTY_SHOOTOUT") or (
+        raw_status in ("IN_PLAY", "PAUSED") and minute is not None and minute > 90
+    ):
+        return None, None
     return ft.get("home"), ft.get("away")
 
 
@@ -64,8 +76,8 @@ def _to_fixture(m: dict, comp_code: str) -> dict:
         ts = int(datetime.fromisoformat(utc.replace("Z", "+00:00")).timestamp())
     except Exception:
         ts = 0
-    home_score, away_score = _score_90min(m.get("score", {}))
     minute = m.get("minute")
+    home_score, away_score = _score_90min(m.get("score", {}), m.get("status", ""), minute)
     return {
         "fixture": {
             "id": m["id"],
@@ -190,8 +202,8 @@ async def fetch_match_by_id_raw(fixture_id: int) -> dict | None:
         ts = int(datetime.fromisoformat(utc.replace("Z", "+00:00")).timestamp())
     except Exception:
         ts = 0
-    home_score, away_score = _score_90min(match.get("score", {}))
     minute = match.get("minute")
+    home_score, away_score = _score_90min(match.get("score", {}), match.get("status", ""), minute)
     return {
         "fixture": {
             "id": match["id"],
