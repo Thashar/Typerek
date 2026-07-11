@@ -163,6 +163,13 @@ def _upsert_fixture(db: Session, f: dict) -> int:
     match.away_team = teams["away"]["name"]
     match.home_team_logo = teams["home"].get("logo")
     match.away_team_logo = teams["away"].get("logo")
+
+    # Przerwa po 2. polowie (przed dogrywka) — API czasem nie podaje minuty w
+    # PAUSED, przez co _status_short zwraca 'HT' zamiast 'ET'. Jesli 2. polowa
+    # juz sie zaczela, to HT nie moze byc przerwa miedzy 1H a 2H — zamykamy mecz.
+    if status_short == 'HT' and match.second_half_started_at is not None:
+        status_short = 'ET'
+
     parsed_status = _parse_status(status_short)
 
     # Blokuj downgrade statusu spowodowany opoznieniem API:
