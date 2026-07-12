@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Index, Integer, DateTime, ForeignKey, String
+from sqlalchemy import Index, Integer, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
@@ -19,6 +19,7 @@ class Prediction(Base):
     predicted_home: Mapped[int] = mapped_column(Integer, nullable=False)
     predicted_away: Mapped[int] = mapped_column(Integer, nullable=False)
     points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
