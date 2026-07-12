@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
 from routers.deps import get_current_user
 from models.user import User
+from models.prediction import Prediction
+from models.match import Match, MatchStatus
 from schemas.prediction import PredictionRequest, PredictionResponse, PredictionSummary
 from services import predictions as svc
 
@@ -54,3 +56,27 @@ def delete_prediction(
     current_user: User = Depends(get_current_user),
 ):
     svc.delete_prediction(db, current_user.id, match_id)
+
+
+@router.put("/admin/{pred_id}/finalize", status_code=200)
+def admin_finalize_prediction(
+    pred_id: int,
+    points: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Endpoint dla admina do ręcznego sfinalizowania wyniku typu."""
+    # Sprawdź czy użytkownik jest adminem
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Brak uprawnień")
+    
+    pred = db.query(Prediction).filter(Prediction.id == pred_id).first()
+    if not pred:
+        raise HTTPException(status_code=404, detail="Typ nie istnieje")
+    
+    pred.points = points
+    pred.is_finalized = True
+    db.commit()
+    db.refresh(pred)
+    return {"id": pred.id, "points": pred.points, "is_finalized": pred.is_finalized}
