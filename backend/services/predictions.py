@@ -22,6 +22,9 @@ def submit_prediction(
     ).first()
 
     if existing:
+        # Nie pozwól edytować, jeśli wynik został sfinalizowany
+        if existing.is_finalized:
+            raise HTTPException(status_code=400, detail="Wynik został sfinalizowany — nie możesz go zmienić")
         existing.predicted_home = predicted_home
         existing.predicted_away = predicted_away
         existing.points = None
